@@ -7,13 +7,24 @@ swift build -c release
 
 APP="build/BFF.fm.app"
 BIN=".build/release/BFFMenuBar"
-RESOURCE_BUNDLE=".build/release/bffdotfm-menu-bar_BFFCore.bundle"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/BFFMenuBar"
-cp -R "$RESOURCE_BUNDLE" "$APP/Contents/Resources/"
+# The SVG goes in loose, not as SwiftPM's resource bundle: that bundle's
+# generated accessor resolves against Bundle.main.bundleURL (the .app itself)
+# and otherwise falls back to an absolute .build/ path, so the app would load
+# its icon from the build tree and crash once that tree went away.
+cp Sources/BFFCore/Resources/coolrock.svg "$APP/Contents/Resources/coolrock.svg"
 cp Scripts/Info.plist "$APP/Contents/Info.plist"
+
+# StatusIcon reads this path via Bundle.main; without it the app falls through
+# to Bundle.module, which fatalErrors outside the build tree. Fail loudly here
+# rather than at some user's launch.
+test -f "$APP/Contents/Resources/coolrock.svg" || {
+    echo "error: coolrock.svg missing from app bundle" >&2
+    exit 1
+}
 
 # App icon: rasterize the SVG into an .icns. Best-effort — the app works
 # without it, so a qlmanage hiccup must not fail the build.

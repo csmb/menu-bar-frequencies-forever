@@ -14,11 +14,16 @@ enum StatusIcon {
         isActive ? active : inactive
     }
 
+    /// Prefers the copy inside the running app bundle so a shipped .app is
+    /// self-contained. `Bundle.module`'s SwiftPM accessor falls back to an
+    /// absolute `.build/` path and `fatalError`s when that is gone, so it is
+    /// only touched when `Bundle.main` misses — i.e. `swift run` and tests.
     private static func loadSVG() -> NSImage? {
-        guard let url = Bundle.module.url(forResource: "coolrock", withExtension: "svg") else {
-            return nil
+        if let url = Bundle.main.url(forResource: "coolrock", withExtension: "svg") {
+            return NSImage(contentsOf: url)
         }
-        return NSImage(contentsOf: url)
+        return Bundle.module.url(forResource: "coolrock", withExtension: "svg")
+            .flatMap(NSImage.init(contentsOf:))
     }
 
     private static func renderBase() -> NSImage {
