@@ -7,9 +7,9 @@ typealias DataProvider = @Sendable (URL) async throws -> (Data, URLResponse)
 /// dropdown is open, so an idle app makes zero requests.
 @MainActor
 final class NowPlayingService: ObservableObject {
-    static let appID = "bffdotfm-menu-bar"
-    static let userAgent = "bffdotfm-menu-bar/1.0"
-    static let endpoint = URL(string: "https://data.bff.fm/api/data/onair/now.json?app_id=\(appID)")!
+    nonisolated static let appID = "bffdotfm-menu-bar"
+    nonisolated static let userAgent = "bffdotfm-menu-bar/1.0"
+    nonisolated static let endpoint = URL(string: "https://data.bff.fm/api/data/onair/now.json?app_id=\(appID)")!
     static let pollInterval: TimeInterval = 30
 
     @Published private(set) var nowPlaying: NowPlaying?
@@ -28,7 +28,7 @@ final class NowPlayingService: ObservableObject {
 
     deinit { timer?.invalidate() }
 
-    static let liveProvider: DataProvider = { url in
+    nonisolated static let liveProvider: DataProvider = { url in
         var request = URLRequest(url: url)
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         return try await URLSession.shared.data(for: request)
