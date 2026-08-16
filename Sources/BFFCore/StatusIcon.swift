@@ -5,10 +5,10 @@ import CoreImage
 /// dimmed while stopped. Rendered from the bundled SVG so it stays sharp on
 /// Retina displays; never a template image (we want BFF.fm's colors).
 enum StatusIcon {
-    nonisolated static let pointSize = NSSize(width: 20, height: 20)
+    static let pointSize = NSSize(width: 20, height: 20)
 
-    nonisolated static let active: NSImage = renderBase()
-    nonisolated static let inactive: NSImage = renderDimmed()
+    static let active: NSImage = renderBase()
+    static let inactive: NSImage = renderDimmed()
 
     static func image(active isActive: Bool) -> NSImage {
         isActive ? active : inactive
