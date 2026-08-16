@@ -35,27 +35,35 @@ struct MenuView: View {
         }
         .padding(12)
         .frame(width: 280)
+        .background(PanelCentering())
         .onAppear { service.setMenuOpen(true) }
         .onDisappear { service.setMenuOpen(false) }
     }
 
     @ViewBuilder
     private var showHeader: some View {
-        MarqueeText(text: service.nowPlaying?.program ?? "Live on BFF.fm")
-            .font(.headline)
-        if let presenter = service.nowPlaying?.presenter {
-            MarqueeText(text: "with \(presenter)")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
+        MarqueeText(programLine)
         if let song = service.nowPlaying?.songLine {
-            MarqueeText(text: song)
+            MarqueeText(song)
             if let album = service.nowPlaying?.album {
-                MarqueeText(text: album)
+                MarqueeText(album)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    /// Show and DJ share the top line, the show name carrying the larger of
+    /// the two sizes so it still reads as the heading.
+    private var programLine: AttributedString {
+        var line = AttributedString(service.nowPlaying?.program ?? "Live on BFF.fm")
+        line.font = .headline
+        guard let presenter = service.nowPlaying?.presenter else { return line }
+        var credit = AttributedString(" with \(presenter)")
+        credit.font = .subheadline
+        credit.foregroundColor = .secondary
+        line.append(credit)
+        return line
     }
 
     @ViewBuilder
@@ -97,7 +105,7 @@ struct MenuView: View {
     /// one line of why, then the action, sharing a row with Quit.
     private var donateCTA: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Tax-deductible — keeps community radio on the air.")
+            Text("Become a Bestie, and your tax-deductible monthly or quarterly sustaining donation will support BFF.fm all year long!")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

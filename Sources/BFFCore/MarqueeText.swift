@@ -10,7 +10,17 @@ import SwiftUI
 /// Font and color come from the environment, so callers style this the same
 /// way they would style a `Text`.
 struct MarqueeText: View {
-    let text: String
+    /// Attributed so one line can mix sizes — the show name stays headline
+    /// weight while the DJ credit beside it stays subheadline.
+    let text: AttributedString
+
+    init(_ text: AttributedString) {
+        self.text = text
+    }
+
+    init(_ string: String) {
+        self.text = AttributedString(string)
+    }
 
     /// Points per second the text travels while it is moving.
     private let speed: CGFloat = 30
