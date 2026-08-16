@@ -16,7 +16,7 @@ final class PlayerController: ObservableObject {
         var isActive: Bool { self == .loading || self == .playing }
     }
 
-    static let streamURL = URL(string: "https://stream.bff.fm/1/mp3.mp3?app_id=bffdotfm-menu-bar")!
+    static let streamURL = BFFAPI.stream
 
     @Published private(set) var state: State = .stopped
 
@@ -39,7 +39,7 @@ final class PlayerController: ObservableObject {
     func play() {
         teardown()
         let asset = AVURLAsset(url: Self.streamURL,
-                               options: [AVURLAssetHTTPUserAgentKey: NowPlayingService.userAgent])
+                               options: [AVURLAssetHTTPUserAgentKey: BFFAPI.userAgent])
         let item = AVPlayerItem(asset: asset)
         let player = AVPlayer(playerItem: item)
         self.player = player

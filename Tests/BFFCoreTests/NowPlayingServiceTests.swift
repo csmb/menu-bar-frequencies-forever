@@ -107,6 +107,19 @@ final class NowPlayingServiceTests: XCTestCase {
     // MARK: BFF.fm identification rules
 
     func testEndpointCarriesAppID() {
-        XCTAssertEqual(NowPlayingService.endpoint.query, "app_id=bffdotfm-menu-bar")
+        XCTAssertEqual(NowPlayingService.endpoint.query, "app_id=com.bunting.bffdotfm-menu-bar")
+    }
+
+    /// The stream is a BFF.fm endpoint too, so the same rule binds it.
+    func testStreamCarriesAppID() {
+        XCTAssertEqual(PlayerController.streamURL.query, "app_id=com.bunting.bffdotfm-menu-bar")
+    }
+
+    /// BFF.fm's developer rules ask for "a reverse URI form (e.g.
+    /// com.example.bff.app)", so a bare slug would be non-compliant.
+    func testAppIDIsReverseURIForm() {
+        let segments = BFFAPI.appID.split(separator: ".")
+        XCTAssertGreaterThanOrEqual(segments.count, 3, "expected reverse URI form, got \(BFFAPI.appID)")
+        XCTAssertEqual(segments.first, "com")
     }
 }
