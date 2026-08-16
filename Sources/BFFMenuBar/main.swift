@@ -1,1 +1,3 @@
-// Entry point is wired up once BFFMenuBarApp exists (Task 5).
+import BFFCore
+
+BFFMenuBarApp.main()
