@@ -39,7 +39,7 @@ struct MenuView: View {
 
     @ViewBuilder
     private var showHeader: some View {
-        Text(service.nowPlaying?.program ?? "BFF.fm — Best Frequencies Forever")
+        Text(service.nowPlaying?.program ?? "Live on BFF.fm")
             .font(.headline)
         if let presenter = service.nowPlaying?.presenter {
             Text("with \(presenter)")
@@ -78,7 +78,11 @@ struct MenuView: View {
             case .stopped, .failed:
                 Label("Play", systemImage: "play.fill")
             case .loading:
-                Label("Connecting…", systemImage: "hourglass")
+                HStack {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Connecting…")
+                }
             case .playing:
                 Label("Stop", systemImage: "stop.fill")
             }
