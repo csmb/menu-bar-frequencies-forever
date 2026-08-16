@@ -2,6 +2,10 @@ import ServiceManagement
 import SwiftUI
 
 struct MenuView: View {
+    /// Opens in the browser, so no `app_id` — that rule covers the app's own
+    /// requests to BFF.fm services, not a page the user visits themselves.
+    static let donateURL = URL(string: "https://bff.fm/donate")!
+
     @ObservedObject var player: PlayerController
     @ObservedObject var service: NowPlayingService
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
@@ -27,9 +31,7 @@ struct MenuView: View {
                 .onChange(of: launchAtLogin) { _, enabled in
                     setLaunchAtLogin(enabled)
                 }
-            Button("Quit BFF.fm") {
-                NSApplication.shared.terminate(nil)
-            }
+            donateCTA
         }
         .padding(12)
         .frame(width: 280)
@@ -39,17 +41,17 @@ struct MenuView: View {
 
     @ViewBuilder
     private var showHeader: some View {
-        Text(service.nowPlaying?.program ?? "Live on BFF.fm")
+        MarqueeText(text: service.nowPlaying?.program ?? "Live on BFF.fm")
             .font(.headline)
         if let presenter = service.nowPlaying?.presenter {
-            Text("with \(presenter)")
+            MarqueeText(text: "with \(presenter)")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
         if let song = service.nowPlaying?.songLine {
-            Text(song)
+            MarqueeText(text: song)
             if let album = service.nowPlaying?.album {
-                Text(album)
+                MarqueeText(text: album)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -89,6 +91,27 @@ struct MenuView: View {
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
+    }
+
+    /// BFF.fm is listener-funded, so the dropdown carries a standing ask —
+    /// one line of why, then the action, sharing a row with Quit.
+    private var donateCTA: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Tax-deductible — keeps community radio on the air.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Link(destination: Self.donateURL) {
+                    Label("Donate", systemImage: "heart.fill")
+                }
+                .buttonStyle(.bordered)
+                Spacer()
+                Button("Quit") {
+                    NSApplication.shared.terminate(nil)
+                }
+            }
+        }
     }
 
     private func setLaunchAtLogin(_ enabled: Bool) {
