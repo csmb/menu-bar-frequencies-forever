@@ -203,6 +203,26 @@ A blank icon that **flashes correct first** is being overwritten, not failed to
 resolve. That distinction was the whole diagnosis: two rebuilds went into the
 link type and the filesystem, neither of which was involved.
 
+**Finder writes `.DS_Store` asynchronously, and losing that race ships an
+unstyled image with no error at all** — `make dmg` succeeds, notarization
+succeeds, and the DMG opens as a plain Finder window. It happened exactly that
+way: one build was fine and the next silently had no `.DS_Store`, from
+identical code. `make-dmg.sh` now waits for the file and then checks it
+contains `backgroundImageAlias`, because the file appears the moment Finder
+touches the window, before the backdrop is recorded. Never judge a disk image
+by its exit code; mount it.
+
+`Scripts/app-icon.swift` recentres the artwork before `iconutil`, because the
+rock sits about 100px nearer the top of its own artboard than the bottom and
+macOS 26 composites app icons onto a tile where that shows. Measure it against
+the **backdrop colour, not alpha**: qlmanage composites onto opaque white, so
+every pixel is alpha 255 and an alpha scan reports the full canvas as content —
+a confident no-op crop.
+
+Apple's timestamp service fails intermittently, and it fails late, after
+notarization has already run. `Scripts/codesign-retry.sh` retries; both scripts
+sign through it so their signatures cannot diverge.
+
 Getting the certificate, if it ever has to be done again:
 
 - **Developer ID Application, not Installer.** They sit next to each other in

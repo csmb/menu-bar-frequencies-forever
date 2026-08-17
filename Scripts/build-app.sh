@@ -32,6 +32,16 @@ TMP="$(mktemp -d)"
 qlmanage -t -s 1024 -o "$TMP" Sources/BFFCore/Resources/coolrock.svg >/dev/null 2>&1 || true
 MASTER="$TMP/coolrock.svg.png"
 if [ -f "$MASTER" ]; then
+    # The rock does not sit centred in its own artboard — it renders about 100px
+    # nearer the top than the bottom at 1024 — and macOS 26 composites the icon
+    # onto a rounded tile, where that offset is plain to see. Recentre before
+    # cutting the iconset. Best-effort, like the rasterization above.
+    if swift Scripts/app-icon.swift "$MASTER" "$TMP/centred.png"; then
+        MASTER="$TMP/centred.png"
+    else
+        echo "warning: could not recentre the app icon; using it as rendered" >&2
+    fi
+
     ICONSET="$TMP/AppIcon.iconset"
     mkdir -p "$ICONSET"
     for s in 16 32 128 256 512; do
@@ -57,7 +67,8 @@ rm -rf "$TMP"
 IDENTITY="$(Scripts/developer-id.sh)"
 
 if [ -n "$IDENTITY" ]; then
-    codesign --force --timestamp --options runtime --sign "$IDENTITY" "$APP"
+    . Scripts/codesign-retry.sh
+    sign_with_retry "$IDENTITY" "$APP" --options runtime
     codesign --verify --strict --verbose=1 "$APP"
     echo "Signed with: $IDENTITY"
 else

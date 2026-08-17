@@ -62,15 +62,22 @@ func drawArrow() {
     let endX = applicationsCenter.x - iconSize / 2 - gap
     let y = flip(appCenter.y)
 
-    let headLength: CGFloat = 26
-    let headHalfHeight: CGFloat = 17
-    let shaftThickness: CGFloat = 11
+    // A head as long as it is wide gives a 45-degree tip: sharp enough to read
+    // as an arrow, blunt enough not to look like a dart.
+    let headLength: CGFloat = 30
+    let headHalfHeight: CGFloat = 15
+    let shaftThickness: CGFloat = 10
 
     NSColor(calibratedRed: 0.62, green: 0.65, blue: 0.70, alpha: 1).setFill()
 
+    // Run the shaft past the head's base rather than stopping at it. Its
+    // rounded cap tapers over the last half-thickness, and stopping flush left
+    // a pinched waist where the taper met the head's square base — the join
+    // that looked "close but not perfect". Buried inside the head, the taper
+    // cannot be seen, and the two read as one shape.
     let shaft = NSBezierPath(roundedRect: NSRect(x: startX,
                                                  y: y - shaftThickness / 2,
-                                                 width: endX - headLength - startX,
+                                                 width: endX - headLength - startX + shaftThickness,
                                                  height: shaftThickness),
                              xRadius: shaftThickness / 2,
                              yRadius: shaftThickness / 2)

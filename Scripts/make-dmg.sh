@@ -171,8 +171,31 @@ tell application "Finder"
 end tell
 APPLESCRIPT
 
-# Finder writes .DS_Store lazily; detaching before it lands loses the layout.
+# Finder writes .DS_Store asynchronously once the window closes, and detaching
+# before it lands produces a perfectly valid disk image with no layout at all:
+# no error, no warning, just a plain Finder window on whoever opens it. That
+# shipped once. A fixed sleep only moves the race, so wait for the file itself.
+for _ in $(seq 1 60); do
+    [ -f "$MOUNT/.DS_Store" ] && break
+    sleep 0.25
+done
 sync
+
+if [ ! -f "$MOUNT/.DS_Store" ]; then
+    echo "error: Finder never wrote .DS_Store; the image would have no layout" >&2
+    exit 1
+fi
+
+# Present is not the same as complete — .DS_Store exists the moment Finder
+# touches the window, before the backdrop is recorded. Check for the thing that
+# actually matters.
+LAYOUT="$(strings "$MOUNT/.DS_Store" 2>/dev/null || true)"
+case "$LAYOUT" in
+    *backgroundImageAlias*) ;;
+    *) echo "error: .DS_Store has no background reference; layout did not take" >&2
+       exit 1 ;;
+esac
+
 hdiutil detach "$MOUNT" -quiet
 trap 'rm -rf "$STAGE" "$WORK"' EXIT
 
@@ -181,7 +204,8 @@ hdiutil convert "$WORK/rw.dmg" -format UDZO -quiet -o "$DMG"
 
 if [ "$DISTRIBUTABLE" -eq 1 ]; then
     echo "Notarizing the disk image…"
-    codesign --force --timestamp --sign "$IDENTITY" "$DMG"
+    . Scripts/codesign-retry.sh
+    sign_with_retry "$IDENTITY" "$DMG"
     xcrun notarytool submit "$DMG" \
         --keychain-profile "$NOTARY_PROFILE" --wait
     xcrun stapler staple "$DMG"
