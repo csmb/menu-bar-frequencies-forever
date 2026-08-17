@@ -9,13 +9,25 @@ enum StationLinks {
         var id: String { name }
     }
 
+    /// bff.fm's own footer, in its own order. DJ Sign In is deliberately left
+    /// out — it's a staff door, not something a listener needs in a menu bar.
     static let station: [Item] = [
-        item("Schedule", "https://bff.fm/shows/schedule"),
-        item("Shows", "https://bff.fm/shows"),
-        item("Events", "https://bff.fm/pages/events"),
-        item("Merch", "https://bff.fm/merch"),
+        item("About BFF.fm", "https://bff.fm/about"),
+        item("Join Us", "https://bff.fm/join"),
         item("Blog", "https://bff.fm/news"),
-        item("Listen", "https://bff.fm/listen"),
+        item("Press", "https://bff.fm/posts/categories/press"),
+        item("FCC Applications", "https://bff.fm/lpfm"),
+        item("Radio Shows", "https://bff.fm/shows"),
+        item("Schedule", "https://bff.fm/shows/schedule"),
+        item("Events", "https://bff.fm/pages/events"),
+        item("Giveaways", "https://bff.fm/posts/categories/giveaways"),
+        item("Donate", "https://bff.fm/donate"),
+        item("Merch", "https://bff.fm/merch"),
+        item("Underwriters", "https://bff.fm/underwriters"),
+        item("Supporters", "https://bff.fm/supporters"),
+        item("Listening Options", "https://bff.fm/listen"),
+        item("Developers & APIs", "https://developer.bff.fm"),
+        item("Contact", "https://bff.fm/contact"),
     ]
 
     static let social: [Item] = [

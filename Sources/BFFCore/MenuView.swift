@@ -178,22 +178,35 @@ struct MenuView: View {
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
 
-        Toggle("Launch at Login", isOn: $launchAtLogin)
-            .toggleStyle(.checkbox)
-            .onChange(of: launchAtLogin) { _, enabled in
-                setLaunchAtLogin(enabled)
-            }
-
-        HStack {
-            Link(destination: StationLinks.donate) {
-                Label("Donate", systemImage: "heart.fill")
-            }
-            .buttonStyle(.bordered)
-            Spacer()
-            Button("Quit") {
-                NSApplication.shared.terminate(nil)
-            }
+        HStack(spacing: 8) {
+            launchAtLoginButton
+            quitButton
         }
+    }
+
+    /// Still a real toggle — `.button` style just gives it the same footprint
+    /// as Quit, and highlights itself while it's on.
+    private var launchAtLoginButton: some View {
+        Toggle(isOn: $launchAtLogin) {
+            Text("Launch at Login").modifier(PanelButtonLabel())
+        }
+        .toggleStyle(.button)
+        .controlSize(.large)
+        .buttonBorderShape(.roundedRectangle(radius: 5))
+        .onChange(of: launchAtLogin) { _, enabled in
+            setLaunchAtLogin(enabled)
+        }
+    }
+
+    private var quitButton: some View {
+        Button {
+            NSApplication.shared.terminate(nil)
+        } label: {
+            Text("Quit").modifier(PanelButtonLabel())
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.large)
+        .buttonBorderShape(.roundedRectangle(radius: 5))
     }
 
     private func sectionLabel(_ text: String) -> some View {
