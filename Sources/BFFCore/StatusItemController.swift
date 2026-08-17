@@ -17,6 +17,8 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     private let popover = NSPopover()
     private var cancellables: Set<AnyCancellable> = []
     private var outsideClickMonitor: Any?
+    private var animation: Timer?
+    private var frame = 0
 
     init(model: AppModel) {
         self.model = model
@@ -29,11 +31,41 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
 
     private func configureStatusItem() {
         guard let button = statusItem.button else { return }
-        button.image = StatusIcon.image(active: model.playbackActive)
         button.imagePosition = .imageOnly
         button.toolTip = "BFF.fm"
         button.target = self
         button.action = #selector(togglePopover)
+        showIdleIcon()
+    }
+
+    // MARK: - The icon
+
+    private func showIdleIcon() {
+        animation?.invalidate()
+        animation = nil
+        frame = 0
+        statusItem.length = StatusIcon.pointSize.width + 8
+        statusItem.button?.image = StatusIcon.idle
+    }
+
+    /// Swaps in a pre-rendered frame on a timer. `.common` mode keeps it
+    /// running while a menu is open or the user is dragging something.
+    private func startAnimating() {
+        guard animation == nil else { return }
+        statusItem.length = StatusIcon.playingSize.width + 8
+        let timer = Timer(timeInterval: StatusIcon.frameInterval, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.advanceFrame() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        animation = timer
+        advanceFrame()
+    }
+
+    private func advanceFrame() {
+        let frames = StatusIcon.playingFrames
+        guard !frames.isEmpty else { return }
+        statusItem.button?.image = frames[frame % frames.count]
+        frame += 1
     }
 
     private func configurePopover() {
@@ -48,13 +80,14 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         popover.contentViewController = host
     }
 
-    /// The icon is full colour while playing and dimmed while stopped.
+    /// Still while stopped, rocking with its bars up while playing.
     private func followPlaybackState() {
         model.$playbackActive
             .removeDuplicates()
             .receive(on: DispatchQueue.main)
             .sink { [weak self] active in
-                self?.statusItem.button?.image = StatusIcon.image(active: active)
+                guard let self else { return }
+                active ? startAnimating() : showIdleIcon()
             }
             .store(in: &cancellables)
     }
