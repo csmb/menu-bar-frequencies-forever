@@ -1,16 +1,15 @@
 import SwiftUI
 
+/// The menu bar item and its dropdown are AppKit, owned by `AppDelegate` —
+/// see `StatusItemController` for why. SwiftUI is still the entry point and
+/// still draws the dropdown's contents.
 public struct BFFMenuBarApp: App {
-    @StateObject private var model = AppModel()
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     public init() {}
 
     public var body: some Scene {
-        MenuBarExtra {
-            MenuView(player: model.player, service: model.service, shows: model.shows)
-        } label: {
-            Image(nsImage: StatusIcon.image(active: model.playbackActive))
-        }
-        .menuBarExtraStyle(.window)
+        // `App` needs a scene, but this app has no windows of its own.
+        Settings { EmptyView() }
     }
 }

@@ -35,9 +35,7 @@ struct MenuView: View {
         .padding(12)
         .frame(width: 280)
         .background(Self.background)
-        .background(PanelCentering())
         .onAppear {
-            service.setMenuOpen(true)
             shows.loadIfNeeded()
             resolvePresenter()
             // Always open on the music, never on wherever we were left.
@@ -45,7 +43,6 @@ struct MenuView: View {
         }
         .onChange(of: service.nowPlaying?.program) { _, _ in resolvePresenter() }
         .onChange(of: shows.urlsByShow.count) { _, _ in resolvePresenter() }
-        .onDisappear { service.setMenuOpen(false) }
     }
 
     // MARK: - Now playing
