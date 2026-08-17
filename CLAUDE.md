@@ -3,10 +3,13 @@
 Guidance for Claude Code working in this repo.
 
 A macOS menu bar app that streams [BFF.fm](https://bff.fm/), San Francisco
-community radio. Private repo: `github.com/csmb/menu-bar-frequencies-forever`.
+community radio. Public repo: `github.com/csmb/menu-bar-frequencies-forever`,
+with the notarized DMG attached to the `v1.0` release.
 
 - **Spec:** `docs/superpowers/specs/2026-08-16-menu-bar-frequencies-forever-design.md`
-  — the binding authority. Where it and the plan disagree, the spec wins.
+  — the binding authority for anything it and the plan disagree on, *except*
+  where it is marked **Superseded**: the shipped app is not `MenuBarExtra` and
+  its stopped icon is not dimmed. Both were deliberate departures.
 - **Plan:** `docs/superpowers/plans/2026-08-16-menu-bar-frequencies-forever.md`
   — how it was built. Contains a few errors the spec does not (see History).
 
@@ -249,6 +252,13 @@ introduction at `tech@bff.fm`.
 The plan contains three defects the spec does not: an `AVPlayer.TimeControlStatus`
 case that does not exist, a fallback string the spec contradicts, and a static
 icon where the spec asks for a spinner. Treat plan code blocks as drafts.
+
+**The spec is stale in two places, both annotated in it.** It specifies
+`MenuBarExtra` and a desaturated, dimmed icon while stopped; the app uses
+`NSStatusItem`/`NSPopover` and stays full colour in both states, showing play
+as motion instead. The README described the dimmed behaviour for months after
+it stopped being true — prose about the icon is worth checking against
+`StatusIcon.swift`, which is short and states its own intent.
 
 Layout has been iterated on with the user against browser mockups rather than
 guessed. Motion and layout options are easier to settle by publishing an

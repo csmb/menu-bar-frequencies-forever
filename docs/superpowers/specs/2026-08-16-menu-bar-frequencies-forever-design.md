@@ -11,6 +11,7 @@ A macOS menu bar app that streams BFF.fm (San Francisco community radio) live au
 
 - One-click access to the BFF.fm live stream from the menu bar.
 - Always-visible play state: the Cool Rock icon is full color while playing, desaturated and dimmed while stopped.
+  **Superseded:** the icon is full colour in both states. Play state reads as motion — the rock sways and three equalizer bars run — because a dimmed mascot was hard to read at menu bar size and lost the station's colours.
 - Dropdown shows show name, presenter, current song (title — artist, album), and album art.
 - No Dock icon (`LSUIElement`), no windows — menu bar only.
 
@@ -75,6 +76,7 @@ Dropdown content, top to bottom:
 ### App entry (`BFFMenuBarApp`)
 
 - `@main` SwiftUI `App` with a `MenuBarExtra` whose label is the Cool Rock icon: `NSImage` loaded from the bundled SVG, rendered at menu bar size, `isTemplate = false` (full color). While stopped, a desaturated/dimmed variant (Core Image mono filter + reduced alpha) is shown instead.
+  **Superseded twice:** not `MenuBarExtra` (see CLAUDE.md, Architecture) and not dimmed — stopped shows the same full-colour rock upright and still, with its bars at rest.
 - Tracks dropdown visibility and play state to drive `NowPlayingService` polling.
 
 ## App Bundle

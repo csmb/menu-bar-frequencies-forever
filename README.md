@@ -2,25 +2,39 @@
 
 A tiny macOS menu bar app that streams [BFF.fm](https://bff.fm/) — San
 Francisco community radio. The Cool Rock lives in your menu bar: click it for
-the current show, the song that's playing, album art, and a play/stop button.
-The icon is full color while playing and dimmed while stopped.
+the current show, the song that's playing, album art, a play/stop button, and a
+link to donate to the station. A second page holds BFF.fm's own links, a Launch
+at Login toggle, and Quit.
+
+The icon is full colour throughout — never a greyed-out template, because the
+station's colours are the point. Play state shows as movement instead: stopped,
+the rock sits upright and still with its three equalizer bars at rest; playing,
+it sways gently side to side while the bars run alongside it.
 
 ![The dropdown: the current show, the track playing, album art, and a play/stop
 button](docs/screenshots/demo.gif)
 
-## Requirements
+## Download
 
-- macOS 14 or later
-- Xcode (or the command line tools) to build
+**[Download the latest release](https://github.com/csmb/menu-bar-frequencies-forever/releases/latest)**
+— open the DMG and drag the app onto Applications.
 
-## Build & install
+Requires macOS 14 or later. It is signed and notarized, so it opens with no
+Gatekeeper warning. Use the in-app "Launch at Login" toggle once it's in
+`/Applications`.
+
+## Building it yourself
+
+You only need this to change something — the release above is the same build.
+It needs macOS 14 or later and Xcode's command line tools.
 
 ```sh
 make install   # builds the app and copies it to /Applications
 ```
 
 Other targets: `make app` (build only), `make run` (build and launch),
-`make dmg` (drag-to-install disk image), `make test` (unit tests), `make clean`.
+`make dmg` (drag-to-install disk image), `make release VERSION=1.1` (stamp a
+new version, then build the image), `make test` (unit tests), `make clean`.
 
 ## Sharing it with other people
 
