@@ -20,6 +20,10 @@ enum BFFAPI {
     /// The 128 kbps MP3 live stream.
     static let stream = identified("https://stream.bff.fm/1/mp3.mp3")
 
+    /// The weekly schedule, as iCalendar. The only place show names are paired
+    /// with their page URLs.
+    static let schedule = identified("https://data.bff.fm/shows/all.ics")
+
     private static func identified(_ endpoint: String) -> URL {
         URL(string: "\(endpoint)?app_id=\(appID)")!
     }

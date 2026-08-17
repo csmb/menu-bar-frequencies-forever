@@ -5,6 +5,7 @@ import SwiftUI
 struct MenuView: View {
     @ObservedObject var player: PlayerController
     @ObservedObject var service: NowPlayingService
+    @ObservedObject var shows: ShowDirectory
 
     @State private var page: Page = .nowPlaying
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
@@ -29,6 +30,7 @@ struct MenuView: View {
         .background(PanelCentering())
         .onAppear {
             service.setMenuOpen(true)
+            shows.loadIfNeeded()
             // Always open on the music, never on wherever we were left.
             page = .nowPlaying
         }
@@ -40,7 +42,9 @@ struct MenuView: View {
     @ViewBuilder
     private var nowPlayingPage: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            MarqueeText(programLine)
+            Text(programLine)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
             Button {
                 page = .more
             } label: {
@@ -56,13 +60,10 @@ struct MenuView: View {
             .help("Station links and settings")
         }
 
-        if let song = service.nowPlaying?.songLine {
-            MarqueeText(song)
-            if let album = service.nowPlaying?.album {
-                MarqueeText(album)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+        if let track = trackLine {
+            Text(track)
+                .font(.subheadline)
+                .fixedSize(horizontal: false, vertical: true)
         }
 
         artwork
@@ -85,16 +86,64 @@ struct MenuView: View {
     }
 
     /// Show and DJ share the top line, the show name carrying the larger of
-    /// the two sizes so it still reads as the heading.
+    /// the two sizes so it still reads as the heading. The show name links to
+    /// its page when the schedule feed has told us where that is.
     private var programLine: AttributedString {
-        var line = AttributedString(service.nowPlaying?.program ?? "Live on BFF.fm")
+        let program = service.nowPlaying?.program
+        var line = AttributedString(program ?? "Live on BFF.fm")
         line.font = .headline
+        if let program, let url = shows.url(forShow: program) {
+            line.link = url
+        }
         guard let presenter = service.nowPlaying?.presenter else { return line }
         var credit = AttributedString(" with \(presenter)")
         credit.font = .subheadline
         credit.foregroundColor = .secondary
         line.append(credit)
         return line
+    }
+
+    /// "Title by Artist on Album (Label)", each part linked to its own page on
+    /// bff.fm. Anything the API didn't send is simply left out of the sentence.
+    private var trackLine: AttributedString? {
+        guard let now = service.nowPlaying else { return nil }
+        return Self.trackLine(title: now.title, artist: now.artist,
+                              album: now.album, label: now.label)
+    }
+
+    static func trackLine(title: String?, artist: String?,
+                          album: String?, label: String?) -> AttributedString? {
+        guard let title else { return nil }
+
+        var line = linked(title, to: artist.flatMap { MusicLinks.track(title, by: $0) })
+        line.font = .subheadline.weight(.medium)
+
+        if let artist {
+            line += plain(" by ")
+            line += linked(artist, to: MusicLinks.artist(artist))
+        }
+        if let album {
+            line += plain(" on ")
+            line += linked(album, to: artist.flatMap { MusicLinks.release(album, by: $0) })
+        }
+        if let label {
+            line += plain(" (")
+            line += linked(label, to: MusicLinks.label(label))
+            line += plain(")")
+        }
+        return line
+    }
+
+    private static func linked(_ text: String, to url: URL?) -> AttributedString {
+        var part = AttributedString(text)
+        if let url { part.link = url }
+        return part
+    }
+
+    private static func plain(_ text: String) -> AttributedString {
+        var part = AttributedString(text)
+        part.foregroundColor = .secondary
+        return part
     }
 
     @ViewBuilder

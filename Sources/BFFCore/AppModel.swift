@@ -8,6 +8,7 @@ import Combine
 final class AppModel: ObservableObject {
     let player = PlayerController()
     let service = NowPlayingService()
+    let shows = ShowDirectory()
 
     @Published private(set) var playbackActive = false
 

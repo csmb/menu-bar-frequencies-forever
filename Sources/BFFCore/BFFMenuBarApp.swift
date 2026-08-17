@@ -7,7 +7,7 @@ public struct BFFMenuBarApp: App {
 
     public var body: some Scene {
         MenuBarExtra {
-            MenuView(player: model.player, service: model.service)
+            MenuView(player: model.player, service: model.service, shows: model.shows)
         } label: {
             Image(nsImage: StatusIcon.image(active: model.playbackActive))
         }
