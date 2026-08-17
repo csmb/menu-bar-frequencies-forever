@@ -45,5 +45,24 @@ else
 fi
 rm -rf "$TMP"
 
-codesign --force --deep --sign - "$APP"
+# Signing. A Developer ID Application certificate is the only thing that lets
+# this open on someone else's Mac, so use one whenever the keychain has one and
+# fall back to ad-hoc — good for this machine and nothing else — when it does
+# not. The hardened runtime and a secure timestamp belong here rather than in
+# make-dmg.sh: notarization rejects a build without them, and by then the
+# signature is already set.
+#
+# No --deep on the Developer ID path. Apple deprecated it, and this bundle has
+# no nested code for it to reach anyway: one Mach-O, an SVG, and an .icns.
+IDENTITY="$(security find-identity -v -p codesigning \
+    | awk -F'"' '/Developer ID Application/ { print $2; exit }')"
+
+if [ -n "$IDENTITY" ]; then
+    codesign --force --timestamp --options runtime --sign "$IDENTITY" "$APP"
+    codesign --verify --strict --verbose=1 "$APP"
+    echo "Signed with: $IDENTITY"
+else
+    codesign --force --deep --sign - "$APP"
+fi
+
 echo "Built $APP"

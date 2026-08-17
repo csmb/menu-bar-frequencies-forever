@@ -40,14 +40,41 @@ Three ways round it, cheapest first:
 2. **Send the DMG anyway** and warn them about the Open Anyway dance. Fine
    among friends who trust where it came from; a bad experience for anyone else.
 3. **Sign with a Developer ID certificate and notarize.** The only route that
-   opens with no warnings at all. Needs a paid Apple Developer account, a
-   *Developer ID Application* certificate (distinct from the Apple Development
-   and Apple Distribution certificates used for Xcode and the App Store), then
-   `codesign` with that identity plus `xcrun notarytool submit --wait` and
-   `xcrun stapler staple`.
+   opens with no warnings at all. `make dmg` already does the whole chain —
+   hardened-runtime signing, notarizing the app, stapling it, then notarizing
+   and stapling the disk image, then proving the result with `spctl`. It takes
+   that path by itself the moment two things exist, and falls back to ad-hoc
+   with a warning until then.
 
-The app is ad-hoc signed for personal use. Use the in-app "Launch at Login"
-toggle after installing to /Applications.
+### Turning notarization on
+
+Both steps are one-time, and neither can be scripted from here.
+
+1. **A *Developer ID Application* certificate**, from
+   [developer.apple.com](https://developer.apple.com/account/resources/certificates/list)
+   → Certificates → `+` → Developer ID Application. It is free under an
+   existing paid membership, but only a team's **Account Holder** may create
+   one. This is a different certificate from the *Apple Development* and
+   *Apple Distribution* ones Xcode and the App Store use — having those does
+   not help.
+2. **Notarization credentials**, stored once in the keychain:
+
+   ```sh
+   xcrun notarytool store-credentials "menu-bar-frequencies-forever" \
+       --apple-id <your-apple-id> \
+       --team-id <your-team-id> \
+       --password <app-specific-password>
+   ```
+
+   App-specific passwords come from
+   [appleid.apple.com](https://appleid.apple.com) → Sign-In and Security. Set
+   `NOTARY_PROFILE` to use a differently named profile.
+
+With both present, `make dmg` produces a disk image that opens on any Mac with
+no warning. With the certificate but no credentials it stops and says so,
+because a signed-but-unnotarized build is rejected exactly like an ad-hoc one.
+
+Use the in-app "Launch at Login" toggle after installing to /Applications.
 
 ## How it works
 

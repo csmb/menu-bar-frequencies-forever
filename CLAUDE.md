@@ -129,12 +129,35 @@ once.
 
 ## Distribution — current state
 
-Ad-hoc signed, so `spctl --assess` **rejects** it on any other machine. The
-next step is a *Developer ID Application* certificate: the account (Team
-`2LKH737S2W`) has Apple Development and Apple Distribution certificates, which
-are for Xcode and the App Store and cannot sign for outside distribution.
-`notarytool` is installed with no stored credentials. `make dmg` warns when the
-signature is ad-hoc.
+Ad-hoc signed, so `spctl --assess` **rejects** it on any other machine.
+
+The scripts are ready for the real thing and switch over on their own.
+`build-app.sh` signs with a *Developer ID Application* identity whenever the
+keychain holds one — hardened runtime and secure timestamp included, because
+notarization rejects a build without them and by then the signature is set —
+and drops to ad-hoc otherwise. `make dmg` then notarizes and staples the app,
+builds the image, notarizes and staples that too, and verifies with `stapler
+validate` and `spctl`. Two Apple-side facts to keep in mind:
+
+- **Stapling the app matters separately from stapling the DMG.** Notarize only
+  the image and the copy dragged into `/Applications` carries no ticket, so it
+  needs Apple's server to vouch for it and fails on an offline Mac.
+- **A Developer ID signature without notarization is rejected exactly like an
+  ad-hoc one**, so there is no useful half-way build. `make dmg` checks for
+  notary credentials *before* the slow part and stops if they are missing.
+
+Still blocked on the certificate, which cannot be created from here: the
+account has Apple Development and Apple Distribution certificates, which are
+for Xcode and the App Store and cannot sign for outside distribution. Only a
+team's **Account Holder** may create a Developer ID one. Note two team IDs are
+in play — `2LKH737S2W` (Apple Distribution) and `D2G3X47LT7` (Apple
+Development).
+
+The two App Store Connect keys in `~/.appstoreconnect/private_keys/` both
+return **401 Unauthenticated** to `notarytool history`, so they are not usable
+for notarization as-is — they are likely team keys needing `--issuer`, or lack
+the role. An app-specific password via `notarytool store-credentials` is the
+simpler route.
 
 Open, unresolved: no `LICENSE` file, and the repo ships BFF.fm's Cool Rock
 artwork, which the station has under no explicit licence. Their rules invite an
