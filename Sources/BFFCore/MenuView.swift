@@ -111,33 +111,44 @@ struct MenuView: View {
         }
     }
 
+    /// Play and Donate split the artwork's width exactly: two equal halves of
+    /// the 256pt content column with one 8pt gap between them. The stretch has
+    /// to be applied to the label — on the `Button` it widens the frame but
+    /// leaves the control itself intrinsically sized and centred inside it.
     private var playButton: some View {
         Button {
             player.toggle()
         } label: {
-            switch player.state {
-            case .stopped, .failed:
-                Label("Play", systemImage: "play.fill")
-            case .loading:
-                HStack(spacing: 5) {
-                    ProgressView().controlSize(.small)
-                    Text("Connecting…")
-                }
-            case .playing:
-                Label("Stop", systemImage: "stop.fill")
-            }
+            playLabel.modifier(PanelButtonLabel())
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
-        .frame(maxWidth: .infinity)
+        .buttonBorderShape(.roundedRectangle(radius: 5))
+    }
+
+    @ViewBuilder
+    private var playLabel: some View {
+        switch player.state {
+        case .stopped, .failed:
+            Label("Play", systemImage: "play.fill")
+        case .loading:
+            HStack(spacing: 5) {
+                ProgressView().controlSize(.small)
+                Text("Connecting…")
+            }
+        case .playing:
+            Label("Stop", systemImage: "stop.fill")
+        }
     }
 
     private var donateButton: some View {
         Link(destination: StationLinks.donate) {
             Label("Donate", systemImage: "heart.fill")
+                .modifier(PanelButtonLabel())
         }
         .buttonStyle(.bordered)
         .controlSize(.large)
+        .buttonBorderShape(.roundedRectangle(radius: 5))
     }
 
     // MARK: - More
@@ -204,6 +215,14 @@ struct MenuView: View {
                 Link(item.name, destination: item.url)
                     .font(.subheadline)
             }
+        }
+    }
+
+    /// Fills the button's half of the row and squares it up, so the pair reads
+    /// as two blocks under the artwork rather than two floating pills.
+    private struct PanelButtonLabel: ViewModifier {
+        func body(content: Content) -> some View {
+            content.frame(maxWidth: .infinity, minHeight: 24)
         }
     }
 
