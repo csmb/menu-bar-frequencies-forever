@@ -1,15 +1,9 @@
 # BFF.FM – Menu Bar Frequencies Forever
 
-A tiny macOS menu bar app that streams [BFF.fm](https://bff.fm/) — San
-Francisco community radio. The Cool Rock lives in your menu bar: click it for
-the current show, the song that's playing, album art, a play/stop button, and a
-link to donate to the station. A second page holds BFF.fm's own links, a Launch
-at Login toggle, and Quit.
-
-The icon is full colour throughout — never a greyed-out template, because the
-station's colours are the point. Play state shows as movement instead: stopped,
-the rock sits upright and still with its three equalizer bars at rest; playing,
-it sways gently side to side while the bars run alongside it.
+A tiny macOS menu bar app that streams [BFF.fm](https://bff.fm/). The Cool Rock
+lives in your menu bar: click it for the current show, the song that's playing,
+album art, a play/stop button, and a link to donate to the station. A second
+page holds BFF.fm's own links, a Launch at Login toggle, and Quit.
 
 ![The dropdown: the current show, the track playing, album art, and a play/stop
 button](docs/screenshots/demo.gif)
