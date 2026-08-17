@@ -1,11 +1,11 @@
 #!/bin/bash
-# Assembles build/BFF.fm.app from the SwiftPM release build.
+# Assembles build/BFF.FM – Menu Bar Frequencies Forever.app from the SwiftPM release build.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 swift build -c release
 
-APP="build/BFF.fm.app"
+APP="build/BFF.FM – Menu Bar Frequencies Forever.app"
 BIN=".build/release/BFFMenuBar"
 
 rm -rf "$APP"

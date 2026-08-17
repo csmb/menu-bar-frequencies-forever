@@ -1,4 +1,4 @@
-# BFF.fm Menu Bar App Implementation Plan
+# BFF.FM – Menu Bar Frequencies Forever: Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -8,16 +8,16 @@
 
 **Tech Stack:** Swift 5.10 tools / SwiftUI `MenuBarExtra` / AVFoundation / Combine / ServiceManagement / XCTest. No Xcode project files — `swift build`, `swift test`, and shell scripts only.
 
-**Spec:** `docs/superpowers/specs/2026-08-16-bff-menubar-design.md`
+**Spec:** `docs/superpowers/specs/2026-08-16-menu-bar-frequencies-forever-design.md`
 
 ## Global Constraints
 
 - Minimum macOS: **14.0** (`platforms: [.macOS(.v14)]`, `LSMinimumSystemVersion 14.0`).
 - Swift tools version: **5.10** (Swift 5 language mode — avoids strict-concurrency churn).
-- Every request to a BFF.fm service sends `app_id=bffdotfm-menu-bar` (query param) and User-Agent `bffdotfm-menu-bar/1.0`.
+- Every request to a BFF.fm service sends `app_id=menu-bar-frequencies-forever` (query param) and User-Agent `menu-bar-frequencies-forever/1.0`.
 - No third-party dependencies. No Xcode project files.
 - Commits go directly to `main`. **Never add a `Co-Authored-By` line or any co-author to commit messages.**
-- Bundle id: `com.bunting.bffdotfm-menu-bar`. App bundle name: `BFF.fm.app`.
+- Bundle id: `com.bunting.menu-bar-frequencies-forever`. App bundle name: `BFF.FM – Menu Bar Frequencies Forever.app`.
 - The Makefile uses **tab** indentation for recipes (make requirement).
 
 ---
@@ -45,7 +45,7 @@ Create `Package.swift`:
 import PackageDescription
 
 let package = Package(
-    name: "bffdotfm-menu-bar",
+    name: "menu-bar-frequencies-forever",
     platforms: [.macOS(.v14)],
     targets: [
         .target(
@@ -359,7 +359,7 @@ final class NowPlayingServiceTests: XCTestCase {
     // MARK: BFF.fm identification rules
 
     func testEndpointCarriesAppID() {
-        XCTAssertEqual(NowPlayingService.endpoint.query, "app_id=bffdotfm-menu-bar")
+        XCTAssertEqual(NowPlayingService.endpoint.query, "app_id=menu-bar-frequencies-forever")
     }
 }
 ```
@@ -383,8 +383,8 @@ typealias DataProvider = @Sendable (URL) async throws -> (Data, URLResponse)
 /// dropdown is open, so an idle app makes zero requests.
 @MainActor
 final class NowPlayingService: ObservableObject {
-    static let appID = "bffdotfm-menu-bar"
-    static let userAgent = "bffdotfm-menu-bar/1.0"
+    static let appID = "menu-bar-frequencies-forever"
+    static let userAgent = "menu-bar-frequencies-forever/1.0"
     static let endpoint = URL(string: "https://data.bff.fm/api/data/onair/now.json?app_id=\(appID)")!
     static let pollInterval: TimeInterval = 30
 
@@ -502,7 +502,7 @@ final class PlayerController: ObservableObject {
         var isActive: Bool { self == .loading || self == .playing }
     }
 
-    static let streamURL = URL(string: "https://stream.bff.fm/1/mp3.mp3?app_id=bffdotfm-menu-bar")!
+    static let streamURL = URL(string: "https://stream.bff.fm/1/mp3.mp3?app_id=menu-bar-frequencies-forever")!
 
     @Published private(set) var state: State = .stopped
 
@@ -953,8 +953,8 @@ git commit -m "Add menu bar UI, app model, and entry point"
 - Create: `README.md`
 
 **Interfaces:**
-- Consumes: release build products `.build/release/BFFMenuBar` and `.build/release/bffdotfm-menu-bar_BFFCore.bundle` (SwiftPM's resource bundle — must be copied next to the binary or `Bundle.module` crashes at launch); `Sources/BFFCore/Resources/coolrock.svg` for the app icon.
-- Produces: `build/BFF.fm.app` (ad-hoc signed, `LSUIElement`), `make app` / `make install` / `make run` / `make test` / `make clean`.
+- Consumes: release build products `.build/release/BFFMenuBar` and `.build/release/menu-bar-frequencies-forever_BFFCore.bundle` (SwiftPM's resource bundle — must be copied next to the binary or `Bundle.module` crashes at launch); `Sources/BFFCore/Resources/coolrock.svg` for the app icon.
+- Produces: `build/BFF.FM – Menu Bar Frequencies Forever.app` (ad-hoc signed, `LSUIElement`), `make app` / `make install` / `make run` / `make test` / `make clean`.
 
 - [ ] **Step 1: Create the Info.plist**
 
@@ -974,7 +974,7 @@ Create `Scripts/Info.plist`:
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.bunting.bffdotfm-menu-bar</string>
+	<string>com.bunting.menu-bar-frequencies-forever</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
@@ -1001,15 +1001,15 @@ Create `Scripts/build-app.sh`:
 
 ```bash
 #!/bin/bash
-# Assembles build/BFF.fm.app from the SwiftPM release build.
+# Assembles build/BFF.FM – Menu Bar Frequencies Forever.app from the SwiftPM release build.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 swift build -c release
 
-APP="build/BFF.fm.app"
+APP="build/BFF.FM – Menu Bar Frequencies Forever.app"
 BIN=".build/release/BFFMenuBar"
-RESOURCE_BUNDLE=".build/release/bffdotfm-menu-bar_BFFCore.bundle"
+RESOURCE_BUNDLE=".build/release/menu-bar-frequencies-forever_BFFCore.bundle"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
@@ -1053,12 +1053,12 @@ app:
 	Scripts/build-app.sh
 
 install: app
-	rm -rf /Applications/BFF.fm.app
-	cp -R build/BFF.fm.app /Applications/
-	@echo "Installed /Applications/BFF.fm.app"
+	rm -rf /Applications/BFF.FM – Menu Bar Frequencies Forever.app
+	cp -R build/BFF.FM – Menu Bar Frequencies Forever.app /Applications/
+	@echo "Installed /Applications/BFF.FM – Menu Bar Frequencies Forever.app"
 
 run: app
-	open build/BFF.fm.app
+	open build/BFF.FM – Menu Bar Frequencies Forever.app
 
 test:
 	swift test
@@ -1072,7 +1072,7 @@ clean:
 Create `README.md`:
 
 ```markdown
-# BFF.fm Menu Bar
+# BFF.FM – Menu Bar Frequencies Forever
 
 A tiny macOS menu bar app that streams [BFF.fm](https://bff.fm/) — San
 Francisco community radio. The Cool Rock lives in your menu bar: click it for
@@ -1087,7 +1087,7 @@ The icon is full color while playing and dimmed while stopped.
 ## Build & install
 
 ```sh
-make install   # builds build/BFF.fm.app and copies it to /Applications
+make install   # builds build/BFF.FM – Menu Bar Frequencies Forever.app and copies it to /Applications
 ```
 
 Other targets: `make app` (build only), `make run` (build and launch),
@@ -1111,13 +1111,13 @@ Cool Rock artwork © [BFF.fm](https://bff.fm/). Not an official BFF.fm app.
 - [ ] **Step 5: Build the app bundle**
 
 Run: `make app`
-Expected: ends with `Built build/BFF.fm.app` (a qlmanage icon warning is acceptable). Then verify the bundle contents:
+Expected: ends with `Built build/BFF.FM – Menu Bar Frequencies Forever.app` (a qlmanage icon warning is acceptable). Then verify the bundle contents:
 
 ```bash
-ls build/BFF.fm.app/Contents/MacOS/BFFMenuBar \
-   build/BFF.fm.app/Contents/Resources/bffdotfm-menu-bar_BFFCore.bundle \
-   build/BFF.fm.app/Contents/Info.plist
-codesign -dv build/BFF.fm.app 2>&1 | head -3
+ls build/BFF.FM – Menu Bar Frequencies Forever.app/Contents/MacOS/BFFMenuBar \
+   build/BFF.FM – Menu Bar Frequencies Forever.app/Contents/Resources/menu-bar-frequencies-forever_BFFCore.bundle \
+   build/BFF.FM – Menu Bar Frequencies Forever.app/Contents/Info.plist
+codesign -dv build/BFF.FM – Menu Bar Frequencies Forever.app 2>&1 | head -3
 ```
 
 Expected: all three paths exist; codesign reports the bundle is signed (adhoc).
@@ -1125,7 +1125,7 @@ Expected: all three paths exist; codesign reports the bundle is signed (adhoc).
 - [ ] **Step 6: Launch and verify end-to-end**
 
 ```bash
-open build/BFF.fm.app && sleep 5 && pgrep -fl BFFMenuBar
+open build/BFF.FM – Menu Bar Frequencies Forever.app && sleep 5 && pgrep -fl BFFMenuBar
 curl -s 'https://data.bff.fm/api/data/onair/now.json' | head -c 300
 ```
 

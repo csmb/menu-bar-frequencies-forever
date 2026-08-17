@@ -1,4 +1,4 @@
-# BFF.fm Menu Bar
+# BFF.FM – Menu Bar Frequencies Forever
 
 A tiny macOS menu bar app that streams [BFF.fm](https://bff.fm/) — San
 Francisco community radio. The Cool Rock lives in your menu bar: click it for
@@ -13,7 +13,7 @@ The icon is full color while playing and dimmed while stopped.
 ## Build & install
 
 ```sh
-make install   # builds build/BFF.fm.app and copies it to /Applications
+make install   # builds the app and copies it to /Applications
 ```
 
 Other targets: `make app` (build only), `make run` (build and launch),
@@ -21,8 +21,8 @@ Other targets: `make app` (build only), `make run` (build and launch),
 
 ## Sharing it with other people
 
-`make dmg` produces `build/BFF.fm.dmg` — the app beside an `/Applications`
-shortcut, the layout everyone recognises.
+`make dmg` produces `build/BFF.FM – Menu Bar Frequencies Forever.dmg` — the
+app beside an `/Applications` shortcut, the layout everyone recognises.
 
 **It will not open cleanly on anyone else's Mac as things stand.** The app is
 ad-hoc signed, which is enough for the machine that built it and nothing more:
@@ -62,8 +62,8 @@ toggle after installing to /Applications.
 
 Per BFF.fm's [developer rules](https://developer.bff.fm/about/developer-rules),
 every request to the API and the stream carries
-`app_id=com.bunting.bffdotfm-menu-bar` — the reverse URI form the rules ask
-for — plus a `bffdotfm-menu-bar/1.0` User-Agent. Both URLs are built in
+`app_id=com.bunting.menu-bar-frequencies-forever` — the reverse URI form the rules ask
+for — plus a `menu-bar-frequencies-forever/1.0` User-Agent. Both URLs are built in
 `Sources/BFFCore/BFFAPI.swift` so the two can't drift apart.
 
 "Do not overwhelm our servers": metadata is polled once every 30 seconds, and

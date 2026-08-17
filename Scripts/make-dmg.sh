@@ -1,12 +1,12 @@
 #!/bin/bash
-# Packages build/BFF.fm.app into a drag-to-install disk image.
+# Packages build/BFF.FM – Menu Bar Frequencies Forever.app into a drag-to-install disk image.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 Scripts/build-app.sh
 
-APP="build/BFF.fm.app"
-DMG="build/BFF.fm.dmg"
+APP="build/BFF.FM – Menu Bar Frequencies Forever.app"
+DMG="build/BFF.FM – Menu Bar Frequencies Forever.dmg"
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
@@ -18,7 +18,7 @@ ln -s /Applications "$STAGE/Applications"
 
 rm -f "$DMG"
 hdiutil create \
-    -volname "BFF.fm $VERSION" \
+    -volname "BFF.FM – Menu Bar Frequencies Forever $VERSION" \
     -srcfolder "$STAGE" \
     -fs HFS+ \
     -format UDZO \

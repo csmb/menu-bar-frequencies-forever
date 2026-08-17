@@ -3,12 +3,12 @@
 Guidance for Claude Code working in this repo.
 
 A macOS menu bar app that streams [BFF.fm](https://bff.fm/), San Francisco
-community radio. Private repo: `github.com/csmb/bffdotfm-menu-bar`.
+community radio. Private repo: `github.com/csmb/menu-bar-frequencies-forever`.
 
-- **Spec:** `docs/superpowers/specs/2026-08-16-bff-menubar-design.md` — the
-  binding authority. Where it and the plan disagree, the spec wins.
-- **Plan:** `docs/superpowers/plans/2026-08-16-bff-menubar.md` — how it was
-  built. Contains a few errors the spec does not (see History).
+- **Spec:** `docs/superpowers/specs/2026-08-16-menu-bar-frequencies-forever-design.md`
+  — the binding authority. Where it and the plan disagree, the spec wins.
+- **Plan:** `docs/superpowers/plans/2026-08-16-menu-bar-frequencies-forever.md`
+  — how it was built. Contains a few errors the spec does not (see History).
 
 ## Build
 
@@ -16,7 +16,7 @@ SwiftPM only, no Xcode project. `BFFCore` holds everything; `BFFMenuBar` is a
 one-line executable calling `BFFMenuBarApp.main()`.
 
 ```sh
-make app      # build/BFF.fm.app
+make app      # build/BFF.FM – Menu Bar Frequencies Forever.app
 make install  # copies it to /Applications
 make dmg      # drag-to-install disk image
 make test     # 60 tests
@@ -48,7 +48,7 @@ page here silently stopped resetting and the dropdown reopened into settings.
 ## BFF.fm's APIs
 
 Developer rules: <https://developer.bff.fm/about/developer-rules>. They ask for
-`app_id` in **reverse URI form** — hence `com.bunting.bffdotfm-menu-bar`, not a
+`app_id` in **reverse URI form** — hence `com.bunting.menu-bar-frequencies-forever`, not a
 slug — and to poll gently. Metadata is fetched once every 30s and only while
 playing or while the dropdown is open. All identity and URLs live in
 `BFFAPI.swift` so they cannot drift apart.

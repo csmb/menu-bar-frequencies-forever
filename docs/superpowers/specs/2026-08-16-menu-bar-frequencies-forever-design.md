@@ -1,4 +1,4 @@
-# BFF.fm Menu Bar App — Design
+# BFF.FM – Menu Bar Frequencies Forever: Design
 
 **Date:** 2026-08-16
 **Status:** Approved
@@ -43,7 +43,7 @@ A macOS menu bar app that streams BFF.fm (San Francisco community radio) live au
   }
   ```
   All fields are treated as optional when decoding — the API may return show-only data with no track.
-- Per BFF.fm's developer rules, both requests send `app_id=bffdotfm-menu-bar` (query parameter) and a custom `User-Agent` (`bffdotfm-menu-bar/<version>`).
+- Per BFF.fm's developer rules, both requests send `app_id=menu-bar-frequencies-forever` (query parameter) and a custom `User-Agent` (`menu-bar-frequencies-forever/<version>`).
 - **Icon:** `https://aw.bff.fm/assets/art/coolrock/1b4090e648255af9e8eeede0ab4a9b9e289d2857.svg`, committed to the repo as a bundled resource (not fetched at runtime).
 
 ## Architecture
@@ -81,7 +81,7 @@ Dropdown content, top to bottom:
 
 SwiftPM can't emit a `.app`, so `Scripts/build-app.sh`:
 1. `swift build -c release`
-2. Assembles `build/BFF.fm.app` — copies the binary, bundle resources, and an `Info.plist` with `LSUIElement = true`, bundle id `com.bunting.bffdotfm-menu-bar`.
+2. Assembles `build/BFF.FM – Menu Bar Frequencies Forever.app` — copies the binary, bundle resources, and an `Info.plist` with `LSUIElement = true`, bundle id `com.bunting.menu-bar-frequencies-forever`.
 3. Generates the `.icns` app icon from the SVG (via `qlmanage`/`sips` + `iconutil`).
 4. Ad-hoc codesigns the bundle.
 

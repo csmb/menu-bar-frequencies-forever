@@ -32,7 +32,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     private func configureStatusItem() {
         guard let button = statusItem.button else { return }
         button.imagePosition = .imageOnly
-        button.toolTip = "BFF.fm"
+        button.toolTip = "BFF.FM – Menu Bar Frequencies Forever"
         button.target = self
         button.action = #selector(togglePopover)
         // Fixed for the life of the app: a status item that resizes on

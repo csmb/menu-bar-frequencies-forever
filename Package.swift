@@ -2,7 +2,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "bffdotfm-menu-bar",
+    name: "menu-bar-frequencies-forever",
     platforms: [.macOS(.v14)],
     targets: [
         .target(

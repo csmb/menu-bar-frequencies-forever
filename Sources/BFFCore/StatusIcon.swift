@@ -115,7 +115,7 @@ enum StatusIcon {
     }
 
     private static func fallback() -> NSImage {
-        NSImage(systemSymbolName: "radio", accessibilityDescription: "BFF.fm")
+        NSImage(systemSymbolName: "radio", accessibilityDescription: "BFF.FM – Menu Bar Frequencies Forever")
             ?? NSImage(size: pointSize)
     }
 }

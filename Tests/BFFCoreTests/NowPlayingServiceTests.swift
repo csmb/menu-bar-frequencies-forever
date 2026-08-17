@@ -107,12 +107,12 @@ final class NowPlayingServiceTests: XCTestCase {
     // MARK: BFF.fm identification rules
 
     func testEndpointCarriesAppID() {
-        XCTAssertEqual(NowPlayingService.endpoint.query, "app_id=com.bunting.bffdotfm-menu-bar")
+        XCTAssertEqual(NowPlayingService.endpoint.query, "app_id=com.bunting.menu-bar-frequencies-forever")
     }
 
     /// The stream is a BFF.fm endpoint too, so the same rule binds it.
     func testStreamCarriesAppID() {
-        XCTAssertEqual(PlayerController.streamURL.query, "app_id=com.bunting.bffdotfm-menu-bar")
+        XCTAssertEqual(PlayerController.streamURL.query, "app_id=com.bunting.menu-bar-frequencies-forever")
     }
 
     /// BFF.fm's developer rules ask for "a reverse URI form (e.g.
