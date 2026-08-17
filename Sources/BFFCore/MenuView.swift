@@ -15,7 +15,15 @@ struct MenuView: View {
         case nowPlaying, more
     }
 
-    private static let background = Color(red: 239 / 255, green: 239 / 255, blue: 239 / 255)
+    /// #efefef in light, #252525bf in dark — the dark one is translucent, so
+    /// the panel keeps a little of the vibrancy behind it.
+    static let backgroundColor = NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            ? NSColor(srgbRed: 0x25 / 255, green: 0x25 / 255, blue: 0x25 / 255, alpha: 0xbf / 255)
+            : NSColor(srgbRed: 0xef / 255, green: 0xef / 255, blue: 0xef / 255, alpha: 1)
+    }
+
+    private static let background = Color(nsColor: backgroundColor)
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -31,9 +39,12 @@ struct MenuView: View {
         .onAppear {
             service.setMenuOpen(true)
             shows.loadIfNeeded()
+            resolvePresenter()
             // Always open on the music, never on wherever we were left.
             page = .nowPlaying
         }
+        .onChange(of: service.nowPlaying?.program) { _, _ in resolvePresenter() }
+        .onChange(of: shows.urlsByShow.count) { _, _ in resolvePresenter() }
         .onDisappear { service.setMenuOpen(false) }
     }
 
@@ -96,11 +107,30 @@ struct MenuView: View {
             line.link = url
         }
         guard let presenter = service.nowPlaying?.presenter else { return line }
-        var credit = AttributedString(" with \(presenter)")
+        var with = AttributedString(" with ")
+        with.font = .subheadline
+        with.foregroundColor = .secondary
+        line.append(with)
+
+        var credit = AttributedString(presenter)
         credit.font = .subheadline
-        credit.foregroundColor = .secondary
+        if let url = shows.url(forPresenter: presenter) {
+            credit.link = url
+        } else {
+            credit.foregroundColor = .secondary
+        }
         line.append(credit)
         return line
+    }
+
+    /// The DJ's page lives on the show's page, so this can only run once the
+    /// schedule has told us where the show is.
+    private func resolvePresenter() {
+        guard let now = service.nowPlaying,
+              let presenter = now.presenter,
+              let program = now.program
+        else { return }
+        shows.loadPresenterIfNeeded(presenter, forShow: program)
     }
 
     /// "Title by Artist on Album (Label)", each part linked to its own page on
