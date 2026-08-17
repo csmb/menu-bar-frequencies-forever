@@ -218,8 +218,10 @@ struct MenuView: View {
     }
 
     private var donateButton: some View {
+        // No heart: the glyph plus this label needs 141pt against the 124pt
+        // each button gets, and the words already say what the heart did.
         Link(destination: StationLinks.donate) {
-            Label("Donate", systemImage: "heart.fill")
+            Text("Donate to BFF.fm")
                 .modifier(PanelButtonLabel())
         }
         .buttonStyle(.bordered)
