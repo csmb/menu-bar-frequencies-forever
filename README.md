@@ -21,8 +21,10 @@ Other targets: `make app` (build only), `make run` (build and launch),
 
 ## Sharing it with other people
 
-`make dmg` produces `build/BFF.FM – Menu Bar Frequencies Forever.dmg` — the
-app beside an `/Applications` shortcut, the layout everyone recognises.
+`make dmg` produces a versioned disk image — `build/BFF.FM – Menu Bar
+Frequencies Forever 1.0.dmg` — laid out the way everyone recognises: the app on
+the left, an arrow, and the `/Applications` folder on the right, in a window
+sized to fit them. Mount it and drag across.
 
 **It opens cleanly on anyone's Mac.** The app is Developer ID signed with the
 hardened runtime, notarized by Apple, and stapled — so a friend downloads it,

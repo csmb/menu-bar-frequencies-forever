@@ -76,15 +76,25 @@ if [ "$DISTRIBUTABLE" -eq 1 ]; then
 fi
 
 # A copy of the app beside a shortcut to /Applications is the drag-to-install
-# layout everyone recognises.
+# layout everyone recognises. The symlink is what gives Applications its own
+# folder icon — an alias or a plain folder would not.
 cp -R "$APP" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
+
+# Finder looks for a disk image's backdrop in a hidden folder on the image
+# itself. One multi-resolution TIFF covers Retina and non-Retina; a plain PNG
+# would be resampled and look soft on half the machines this lands on.
+mkdir "$STAGE/.background"
+swift Scripts/dmg-background.swift "$WORK" >/dev/null
+tiffutil -cathidpicheck "$WORK/background.png" "$WORK/background@2x.png" \
+    -out "$STAGE/.background/background.tiff" >/dev/null
 
 # Whatever is in STAGE ships, and a stray file here is invisible until someone
 # mounts the image and reads it. Exactly two entries belong: the app and the
 # symlink you drag it onto. This check exists because app.zip once did not
 # announce itself — it only showed up as a DMG that had quietly doubled in size.
-UNEXPECTED="$(ls -A "$STAGE" | grep -vxF -e "$(basename "$APP")" -e "Applications" || true)"
+UNEXPECTED="$(ls -A "$STAGE" \
+    | grep -vxF -e "$(basename "$APP")" -e "Applications" -e ".background" || true)"
 if [ -n "$UNEXPECTED" ]; then
     {
         echo "error: unexpected entries staged for the disk image; they would ship:"
@@ -93,14 +103,72 @@ if [ -n "$UNEXPECTED" ]; then
     exit 1
 fi
 
-rm -f "$DMG"
+VOLUME="BFF.FM – Menu Bar Frequencies Forever $VERSION"
+
+# Window position, icon placement and the backdrop are all stored in the
+# image's .DS_Store, and only Finder writes that file. So: build a writable
+# image, open it, let Finder record the layout, then compress the result. The
+# numbers below must match the constants in dmg-background.swift or the arrow
+# will not line up with the icons it points between.
+#
+# Do not judge this step by the window that appears while it runs. Finder
+# accepts `set background picture` without complaint and then does not paint it
+# in the live window — it only writes the backgroundImageAlias into .DS_Store,
+# and the backdrop appears when the finished image is mounted. Chasing that
+# apparent failure costs an afternoon; verify by mounting the built DMG.
+#
+# The slack is for .DS_Store and Finder's own scratch; a UDRW sized exactly to
+# its contents has nowhere to put them. It costs nothing in the end, as the
+# UDZO conversion discards the empty space.
+SIZE_KB=$(( $(du -sk "$STAGE" | cut -f1) + 20480 ))
+rm -f "$WORK/rw.dmg"
 hdiutil create \
-    -volname "BFF.FM – Menu Bar Frequencies Forever $VERSION" \
+    -volname "$VOLUME" \
     -srcfolder "$STAGE" \
     -fs HFS+ \
-    -format UDZO \
+    -format UDRW \
+    -size "${SIZE_KB}k" \
     -quiet \
-    "$DMG"
+    "$WORK/rw.dmg"
+
+MOUNT="$(hdiutil attach "$WORK/rw.dmg" -readwrite -noverify -noautoopen \
+    | grep -o '/Volumes/.*$' | tail -1)"
+trap 'hdiutil detach "$MOUNT" -quiet -force 2>/dev/null || true; rm -rf "$STAGE" "$WORK"' EXIT
+
+osascript <<APPLESCRIPT
+tell application "Finder"
+    tell disk "$VOLUME"
+        open
+        set current view of container window to icon view
+        set toolbar visible of container window to false
+        set statusbar visible of container window to false
+        -- {left, top, right, bottom} is the window FRAME, not its content:
+        -- measured on this machine, the chrome eats 34pt of title bar and 26pt
+        -- of status bar, leaving a 560x340 content area out of a 560x400
+        -- frame. dmg-background.swift draws for exactly that, and oversizes the
+        -- image vertically so the leftover crops instead of leaving a gap.
+        set the bounds of container window to {240, 150, 800, 550}
+        set viewOptions to the icon view options of container window
+        set arrangement of viewOptions to not arranged
+        set icon size of viewOptions to 100
+        set text size of viewOptions to 12
+        set background picture of viewOptions to file ".background:background.tiff"
+        set position of item "$(basename "$APP")" of container window to {150, 160}
+        set position of item "Applications" of container window to {410, 160}
+        update without registering applications
+        delay 1
+        close
+    end tell
+end tell
+APPLESCRIPT
+
+# Finder writes .DS_Store lazily; detaching before it lands loses the layout.
+sync
+hdiutil detach "$MOUNT" -quiet
+trap 'rm -rf "$STAGE" "$WORK"' EXIT
+
+rm -f "$DMG"
+hdiutil convert "$WORK/rw.dmg" -format UDZO -quiet -o "$DMG"
 
 if [ "$DISTRIBUTABLE" -eq 1 ]; then
     echo "Notarizing the disk image…"

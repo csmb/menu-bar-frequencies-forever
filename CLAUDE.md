@@ -168,6 +168,29 @@ image, notarizes and staples that too, and verifies with `stapler validate` and
   ad-hoc one**, so there is no useful half-way build. `make dmg` checks for
   notary credentials *before* the slow part and stops if they are missing.
 
+### The disk image window
+
+Icon positions, window size and backdrop live in the image's `.DS_Store`, which
+only Finder writes — hence the writable image, the AppleScript, and the
+compress-afterwards dance in `make-dmg.sh`. Three things about it cost real
+time to establish, all measured rather than assumed:
+
+- **Finder accepts `set background picture` and does not paint it.** No error;
+  the live window stays white. It *does* write `backgroundImageAlias` into
+  `.DS_Store`, and the backdrop appears when the finished image is mounted.
+  Judge this step by mounting the built DMG, never by the window on screen —
+  `strings … /.DS_Store | grep backgroundImage` confirms it directly.
+- **`bounds` is the window frame, not its content.** The chrome takes 34pt of
+  title bar and 26pt of status bar, so a 560×400 frame yields 560×340 of usable
+  area. `set statusbar visible to false` is accepted and ignored.
+- **Finder draws the backdrop at natural size, anchored top-left.** So an image
+  taller than the content crops harmlessly while a shorter one leaves a white
+  band. `dmg-background.swift` therefore renders 420pt tall for a 340pt area
+  and keeps everything meaningful in the top 340.
+
+The arrow lines up because `dmg-background.swift` and the AppleScript read the
+same icon coordinates. Change one and you must change the other.
+
 Getting the certificate, if it ever has to be done again:
 
 - **Developer ID Application, not Installer.** They sit next to each other in
