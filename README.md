@@ -5,6 +5,9 @@ Francisco community radio. The Cool Rock lives in your menu bar: click it for
 the current show, the song that's playing, album art, and a play/stop button.
 The icon is full color while playing and dimmed while stopped.
 
+![The dropdown: the current show, the track playing, album art, and a play/stop
+button](docs/screenshots/demo.gif)
+
 ## Requirements
 
 - macOS 14 or later
@@ -26,6 +29,9 @@ Frequencies Forever 1.0.dmg` — laid out the way everyone recognises: the app o
 the left, an arrow, and the `/Applications` folder on the right, in a window
 sized to fit them. Mount it and drag across.
 
+![The disk image window: the app, an arrow, and the Applications
+folder](docs/screenshots/dmg.png)
+
 **It opens cleanly on anyone's Mac.** The app is Developer ID signed with the
 hardened runtime, notarized by Apple, and stapled — so a friend downloads it,
 drags it across, and it just opens. No warning, no Control-click trick, no trip
@@ -45,7 +51,7 @@ Gatekeeper actually keys off. Assessing a file you built locally proves very
 little, because that flag is only set on download:
 
 ```sh
-cp "build/BFF.FM – Menu Bar Frequencies Forever.dmg" /tmp/copy.dmg
+cp "build/BFF.FM – Menu Bar Frequencies Forever 1.0.dmg" /tmp/copy.dmg
 xattr -w com.apple.quarantine "0083;0;Safari;" /tmp/copy.dmg
 spctl --assess --type open --context context:primary-signature -vv /tmp/copy.dmg
 # accepted / source=Notarized Developer ID
@@ -107,20 +113,5 @@ Use the in-app "Launch at Login" toggle after installing to /Applications.
   (`data.bff.fm/api/data/onair/now.json`), polled every 30 seconds — and only
   while playing or while the dropdown is open.
 - Built with SwiftPM only; `Scripts/build-app.sh` assembles the `.app`.
-
-## Playing by BFF.fm's rules
-
-Per BFF.fm's [developer rules](https://developer.bff.fm/about/developer-rules),
-every request to the API and the stream carries
-`app_id=com.bunting.menu-bar-frequencies-forever` — the reverse URI form the rules ask
-for — plus a `menu-bar-frequencies-forever/1.0` User-Agent. Both URLs are built in
-`Sources/BFFCore/BFFAPI.swift` so the two can't drift apart.
-
-"Do not overwhelm our servers": metadata is polled once every 30 seconds, and
-only while the stream is playing or the dropdown is open. An idle app in your
-menu bar makes no requests at all.
-
-BFF.fm has not applied an explicit license to its data, so this app only
-displays it live and stores nothing.
 
 Cool Rock artwork © [BFF.fm](https://bff.fm/). Not an official BFF.fm app.
