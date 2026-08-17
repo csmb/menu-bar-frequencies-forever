@@ -17,9 +17,19 @@ final class ShowDirectory: ObservableObject {
     private let provider: DataProvider
     private var loadStarted = false
     private var presenterLookups: Set<String> = []
+    /// A failed load is retried, but not on every click — see `retryFloor`.
+    private var lastLoadAttempt: Date?
+    private let now: () -> Date
 
-    init(provider: @escaping DataProvider = NowPlayingService.liveProvider) {
+    /// How long a failure is allowed to stand before another attempt. Without
+    /// it, a station that is down turns every dropdown open into another 64KB
+    /// request for the same feed.
+    static let retryFloor: TimeInterval = 60
+
+    init(provider: @escaping DataProvider = NowPlayingService.liveProvider,
+         now: @escaping () -> Date = Date.init) {
         self.provider = provider
+        self.now = now
     }
 
     func url(forShow name: String) -> URL? {
@@ -28,7 +38,11 @@ final class ShowDirectory: ObservableObject {
 
     func loadIfNeeded() {
         guard !loadStarted else { return }
+        if let last = lastLoadAttempt, now().timeIntervalSince(last) < Self.retryFloor {
+            return
+        }
         loadStarted = true
+        lastLoadAttempt = now()
         Task { await load() }
     }
 
@@ -103,7 +117,7 @@ final class ShowDirectory: ObservableObject {
         for match in regex.matches(in: html, range: range) {
             guard let path = Range(match.range(at: 1), in: html),
                   let label = Range(match.range(at: 2), in: html),
-                  let url = URL(string: "https://bff.fm\(html[path])")
+                  let url = BFFAPI.trusted(URL(string: "https://bff.fm\(html[path])"))
             else { continue }
 
             let name = key(stripTags(String(html[label])))
@@ -138,7 +152,10 @@ final class ShowDirectory: ObservableObject {
                     options: [.regularExpression, .caseInsensitive]
                 )
             } else if let value = value(of: "URL", in: line) {
-                if let name = summary, let url = URL(string: value), !name.isEmpty {
+                // Checked, not trusted: this URL is later fetched by
+                // loadPresenter and handed to the user's browser on click.
+                if let name = summary, let url = BFFAPI.trusted(URL(string: value)),
+                   !name.isEmpty {
                     found[key(name)] = url
                 }
             }

@@ -74,6 +74,36 @@ playing or while the dropdown is open. All identity and URLs live in
 
 `data.bff.fm/api/data/tracks/now.json` returns `{}`. Ignore it.
 
+### Being a good guest
+
+The station gets nothing from us but load, so the app is built not to cost them
+more than it must. Two rules hold this up, and both have been broken once:
+
+- **Every URL we did not write goes through `BFFAPI.trusted`.** The schedule
+  feed's `URL:` property, the `image`/`program_image` fields, and the
+  `/people/` hrefs scraped from a show page are all data, and each ends up
+  either fetched by us or opened in the user's browser. Unchecked, anything
+  able to alter one of those responses could point every installed copy of this
+  app at a URL of its choosing. `trusted` requires https and a `bff.fm` host —
+  `hasSuffix(".bff.fm")` plus an exact match, because a bare suffix test
+  accepts `notbff.fm`.
+- **A user cannot outpace the poll interval by clicking.** Opening the dropdown
+  starts polling and polling starts with a fetch, so every click on the menu
+  bar icon was a request — a dozen idle open/closes sent a dozen, against a
+  documented one per 30s. `NowPlayingService` stamps `lastRequested`
+  **synchronously in `fetchNow()`**, not inside the async `fetch()`: stamped in
+  the Task, a burst of clicks all read the old value before the first one
+  recorded anything, and the throttle looked right while doing nothing. The
+  schedule feed has its own `retryFloor` for the same reason.
+
+`MusicLinks.slug` is safe by construction — it splits on
+`CharacterSet.alphanumerics.inverted` and joins what survives, so a slug is
+`[a-z0-9]*` and no track title can reach outside the path it is interpolated
+into. Do not "improve" it into something that preserves punctuation.
+
+The app writes nothing to disk: no `UserDefaults`, no caches, no files. The
+README's claim that it stores nothing is literally true, and worth keeping so.
+
 ### Link slugs — the important part
 
 **Music slugs are derivable** (`MusicLinks.swift`): fold accents, lowercase,

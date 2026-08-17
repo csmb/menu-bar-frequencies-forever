@@ -27,4 +27,28 @@ enum BFFAPI {
     private static func identified(_ endpoint: String) -> URL {
         URL(string: "\(endpoint)?app_id=\(appID)")!
     }
+
+    /// Passes a URL through only if it points at BFF.fm over TLS.
+    ///
+    /// Several URLs in this app are not written here — they arrive in the
+    /// schedule feed, in now-playing JSON, or in the markup of a show page —
+    /// and each is either fetched or handed to the user's browser. Left
+    /// unchecked, anything that could alter one of those responses could make
+    /// every copy of this app fetch a URL of its choosing, or open one on
+    /// click. That is a bigger favour than the station ever asked for, and the
+    /// check costs nothing.
+    ///
+    /// Scheme is pinned to https because a URL is also a way to reach things
+    /// that are not the web: `file:` reads the user's disk, and a custom scheme
+    /// can launch another application.
+    static func trusted(_ url: URL?) -> URL? {
+        guard let url,
+              url.scheme?.lowercased() == "https",
+              let host = url.host?.lowercased(),
+              // Suffix alone would accept "notbff.fm"; the dot makes it a
+              // subdomain check rather than a string match.
+              host == "bff.fm" || host.hasSuffix(".bff.fm")
+        else { return nil }
+        return url
+    }
 }

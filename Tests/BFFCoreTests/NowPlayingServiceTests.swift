@@ -123,3 +123,129 @@ final class NowPlayingServiceTests: XCTestCase {
         XCTAssertEqual(segments.first, "com")
     }
 }
+
+@MainActor
+final class PollThrottleTests: XCTestCase {
+    private final class Counter: @unchecked Sendable {
+        var requests = 0
+    }
+
+    private func service(_ counter: Counter, clock: @escaping () -> Date)
+        -> NowPlayingService
+    {
+        NowPlayingService(
+            provider: { url in
+                counter.requests += 1
+                let response = HTTPURLResponse(url: url, statusCode: 200,
+                                               httpVersion: nil, headerFields: nil)!
+                return (Data("{}".utf8), response)
+            },
+            now: clock)
+    }
+
+    /// Fidgeting with the menu bar icon must not become a request per click.
+    func testReopeningTheDropdownDoesNotRefetchWithinTheInterval() async {
+        let counter = Counter()
+        let clock = { Date(timeIntervalSince1970: 1_000) }
+        let service = service(counter, clock: clock)
+
+        for _ in 0..<10 {
+            service.setMenuOpen(true)
+            service.setMenuOpen(false)
+        }
+        await Task.yield()
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        XCTAssertEqual(counter.requests, 1,
+                       "ten opens inside one interval should cost one request")
+    }
+
+    /// But it must still refresh once the interval has genuinely passed.
+    func testReopeningAfterTheIntervalDoesRefetch() async {
+        let counter = Counter()
+        var seconds = 1_000.0
+        let service = service(counter, clock: { Date(timeIntervalSince1970: seconds) })
+
+        service.setMenuOpen(true)
+        service.setMenuOpen(false)
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        seconds += NowPlayingService.pollInterval + 1
+        service.setMenuOpen(true)
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        XCTAssertEqual(counter.requests, 2,
+                       "a reopen after the interval should refresh")
+    }
+
+    /// A failing endpoint must not be retried faster than a working one.
+    func testFailuresDoNotUnlockFasterRetries() async {
+        let counter = Counter()
+        let clock = { Date(timeIntervalSince1970: 1_000) }
+        let service = NowPlayingService(
+            provider: { _ in
+                counter.requests += 1
+                throw URLError(.notConnectedToInternet)
+            },
+            now: clock)
+
+        for _ in 0..<5 {
+            service.setMenuOpen(true)
+            service.setMenuOpen(false)
+        }
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        XCTAssertEqual(counter.requests, 1,
+                       "a failing endpoint must not be hammered")
+    }
+}
+
+final class TrustedURLTests: XCTestCase {
+    func testAcceptsBFFOverTLS() {
+        XCTAssertNotNil(BFFAPI.trusted(URL(string: "https://bff.fm/shows/x")))
+        XCTAssertNotNil(BFFAPI.trusted(URL(string: "https://a.bff.fm/image/y.png")))
+        XCTAssertNotNil(BFFAPI.trusted(URL(string: "https://BFF.FM/shows/x")))
+    }
+
+    func testRejectsOtherHosts() {
+        XCTAssertNil(BFFAPI.trusted(URL(string: "https://evil.example/x")))
+        // The one a bare hasSuffix check would wave through.
+        XCTAssertNil(BFFAPI.trusted(URL(string: "https://notbff.fm/x")))
+        XCTAssertNil(BFFAPI.trusted(URL(string: "https://bff.fm.evil.example/x")))
+    }
+
+    func testRejectsNonHTTPSSchemes() {
+        XCTAssertNil(BFFAPI.trusted(URL(string: "http://bff.fm/x")))
+        XCTAssertNil(BFFAPI.trusted(URL(string: "file:///etc/passwd")))
+        XCTAssertNil(BFFAPI.trusted(URL(string: "javascript:alert(1)")))
+    }
+}
+
+@MainActor
+final class BorrowedURLTests: XCTestCase {
+    /// A schedule entry pointing off-site must not become a link we open.
+    func testScheduleURLsOffBFFAreDropped() {
+        let ics = """
+        BEGIN:VEVENT
+        SUMMARY:Hostile Show on BFF.FM
+        URL:https://evil.example/pwned
+        END:VEVENT
+        BEGIN:VEVENT
+        SUMMARY:Real Show on BFF.FM
+        URL:https://bff.fm/shows/real-show
+        END:VEVENT
+        """
+        let parsed = ShowDirectory.parse(ics)
+        XCTAssertNil(parsed["hostile show"])
+        XCTAssertEqual(parsed["real show"]?.absoluteString,
+                       "https://bff.fm/shows/real-show")
+    }
+
+    func testArtworkOffBFFIsDropped() {
+        let hostile = NowPlaying(image: "https://evil.example/track.png")
+        XCTAssertNil(hostile.artworkURL)
+
+        let real = NowPlaying(image: "https://a.bff.fm/image/original/x.png")
+        XCTAssertEqual(real.artworkURL?.host, "a.bff.fm")
+    }
+}

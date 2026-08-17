@@ -14,14 +14,22 @@ final class NowPlayingService: ObservableObject {
     @Published private(set) var fetchFailed = false
 
     private let provider: DataProvider
+    private let now: () -> Date
     private var timer: Timer?
     private var isPlaying = false
     private var menuOpen = false
+    /// When we last *asked*, not when we last succeeded — a failing endpoint
+    /// must not be retried faster than a working one.
+    private var lastRequested: Date?
 
     var isPolling: Bool { timer != nil }
 
-    init(provider: @escaping DataProvider = NowPlayingService.liveProvider) {
+    /// `now` is injectable so the throttle can be tested without waiting out
+    /// a real 30 seconds.
+    init(provider: @escaping DataProvider = NowPlayingService.liveProvider,
+         now: @escaping () -> Date = Date.init) {
         self.provider = provider
+        self.now = now
     }
 
     deinit { timer?.invalidate() }
@@ -43,10 +51,16 @@ final class NowPlayingService: ObservableObject {
     }
 
     func fetchNow() {
+        // Stamped here, synchronously, not inside fetch(). fetch() runs in a
+        // Task, so a burst of clicks all read the old timestamp before the
+        // first one has recorded anything and every click gets through — the
+        // throttle looked right and did nothing.
+        lastRequested = now()
         Task { await self.fetch() }
     }
 
     func fetch() async {
+        lastRequested = now()
         do {
             let (data, response) = try await provider(Self.endpoint)
             if let http = response as? HTTPURLResponse, http.statusCode != 200 {
@@ -62,7 +76,17 @@ final class NowPlayingService: ObservableObject {
     private func refreshGate() {
         let shouldPoll = isPlaying || menuOpen
         if shouldPoll, timer == nil {
-            fetchNow()
+            // Opening the dropdown starts polling, and polling starts with a
+            // fetch — so without this, every click on the menu bar icon was a
+            // request. Idly opening and closing it a dozen times sent a dozen,
+            // against a documented rate of one per 30s. The timer still runs on
+            // schedule; only the eager first fetch is held back, which costs at
+            // most one interval of staleness on data we just asked for anyway.
+            if let last = lastRequested, now().timeIntervalSince(last) < Self.pollInterval {
+                // Too soon. The timer below will catch up.
+            } else {
+                fetchNow()
+            }
             let timer = Timer(timeInterval: Self.pollInterval, repeats: true) { [weak self] _ in
                 Task { @MainActor in self?.fetchNow() }
             }

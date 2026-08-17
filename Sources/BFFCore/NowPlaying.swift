@@ -8,14 +8,13 @@ struct NowPlaying: Decodable, Equatable {
     var artist: String?
     var album: String?
     var label: String?
-    var url: String?
     var image: String?
     var program: String?
     var presenter: String?
     var programImage: String?
 
     enum CodingKeys: String, CodingKey {
-        case title, artist, album, label, url, image, program, presenter
+        case title, artist, album, label, image, program, presenter
         case programImage = "program_image"
     }
 
@@ -28,9 +27,12 @@ struct NowPlaying: Decodable, Equatable {
         }
     }
 
+    /// Artwork lives on `a.bff.fm`, so both fields go through the same check
+    /// every other borrowed URL does. Without it, whatever can set this field
+    /// can make every installed copy of the app fetch a URL of its choosing.
     var artworkURL: URL? {
-        if let image, let parsed = URL(string: image) { return parsed }
-        if let programImage, let parsed = URL(string: programImage) { return parsed }
+        if let image, let parsed = BFFAPI.trusted(URL(string: image)) { return parsed }
+        if let programImage, let parsed = BFFAPI.trusted(URL(string: programImage)) { return parsed }
         return nil
     }
 }
