@@ -35,6 +35,10 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         button.toolTip = "BFF.fm"
         button.target = self
         button.action = #selector(togglePopover)
+        // Fixed for the life of the app: a status item that resizes on
+        // play/stop shoves its neighbours along and drags the open popover
+        // sideways with it, because the popover is anchored to this button.
+        statusItem.length = StatusIcon.playingSize.width + 8
         showIdleIcon()
     }
 
@@ -44,7 +48,6 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         animation?.invalidate()
         animation = nil
         frame = 0
-        statusItem.length = StatusIcon.pointSize.width + 8
         statusItem.button?.image = StatusIcon.idle
     }
 
@@ -52,7 +55,6 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     /// running while a menu is open or the user is dragging something.
     private func startAnimating() {
         guard animation == nil else { return }
-        statusItem.length = StatusIcon.playingSize.width + 8
         let timer = Timer(timeInterval: StatusIcon.frameInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.advanceFrame() }
         }

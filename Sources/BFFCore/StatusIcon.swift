@@ -12,8 +12,24 @@ import AppKit
 enum StatusIcon {
     static let pointSize = NSSize(width: 20, height: 20)
 
-    /// Playing is wider — the bars sit to the right of the rock.
-    static let playingSize = NSSize(width: 31, height: 20)
+    // MARK: - Bar geometry
+    //
+    // The frame's width is derived from these rather than written down
+    // separately: hard-coding it once left the last bar running 1.5pt past the
+    // right edge, where it was silently clipped in half.
+
+    private static let barCount = 3
+    private static let barWidth: CGFloat = 2.5
+    private static let barGap: CGFloat = 1.5
+    private static let barsLeft = pointSize.width + 2
+    private static let trailingMargin: CGFloat = 1
+
+    static let barsRight = barsLeft
+        + CGFloat(barCount) * barWidth
+        + CGFloat(barCount - 1) * barGap
+
+    /// Wide enough for the rock plus every bar, whole.
+    static let playingSize = NSSize(width: barsRight + trailingMargin, height: 20)
 
     /// How far the rock tilts at the extremes of its sway.
     private static let tilt: CGFloat = 8
@@ -22,11 +38,27 @@ enum StatusIcon {
     static let frameCount = 18
     static var frameInterval: TimeInterval { cycle / Double(frameCount) }
 
-    /// Shown while stopped: full colour, perfectly still.
-    static let idle: NSImage = renderIdle()
+    /// Where the bars sit when nothing is playing — present, but at rest.
+    private static let restLevel = 0.28
+
+    /// Shown while stopped: upright, full colour, bars down and still. Same
+    /// size as a playing frame so the status item never changes width and the
+    /// popover never gets re-anchored out from under the pointer.
+    static let idle: NSImage = renderFrame(tilt: 0, levels: [restLevel, restLevel, restLevel])
 
     /// One sway of the rock with the bars running alongside, as a loop.
-    static let playingFrames: [NSImage] = (0..<frameCount).map(renderPlayingFrame)
+    static let playingFrames: [NSImage] = (0..<frameCount).map { index in
+        let phase = Double(index) / Double(frameCount)
+        return renderFrame(
+            tilt: CGFloat(sin(phase * 2 * .pi)) * tilt,
+            levels: (0..<3).map { level(atPhase: phase + Double($0) / 3) }
+        )
+    }
+
+    /// sin swings -1...1; fold it so a bar never drops below its resting height.
+    private static func level(atPhase phase: Double) -> Double {
+        restLevel + (1 - restLevel) * (sin(phase * 2 * .pi) + 1) / 2
+    }
 
     /// Prefers the copy inside the running app bundle so a shipped .app is
     /// self-contained. `Bundle.module`'s SwiftPM accessor falls back to an
@@ -40,23 +72,11 @@ enum StatusIcon {
             .flatMap(NSImage.init(contentsOf:))
     }
 
-    private static func renderIdle() -> NSImage {
+    private static func renderFrame(tilt degrees: CGFloat, levels: [Double]) -> NSImage {
         guard let svg = loadSVG() else { return fallback() }
-        let image = NSImage(size: pointSize, flipped: false) { rect in
-            svg.draw(in: rect)
-            return true
-        }
-        image.isTemplate = false
-        return image
-    }
-
-    private static func renderPlayingFrame(_ index: Int) -> NSImage {
-        guard let svg = loadSVG() else { return fallback() }
-        let phase = Double(index) / Double(frameCount)
-
         let image = NSImage(size: playingSize, flipped: false) { _ in
-            drawRock(svg, tiltedBy: CGFloat(sin(phase * 2 * .pi)) * tilt)
-            drawBars(atPhase: phase)
+            drawRock(svg, tiltedBy: degrees)
+            drawBars(levels)
             return true
         }
         image.isTemplate = false
@@ -76,25 +96,20 @@ enum StatusIcon {
         NSGraphicsContext.restoreGraphicsState()
     }
 
-    /// Three bars, each a third of a cycle out of step with its neighbour, so
-    /// they read as levels moving rather than as one block flashing.
-    private static func drawBars(atPhase phase: Double) {
-        let width: CGFloat = 2.5
-        let gap: CGFloat = 1.5
+    /// Three bars at the given levels. While playing each is a third of a
+    /// cycle out of step with its neighbour, so they read as levels moving
+    /// rather than as one block flashing.
+    private static func drawBars(_ levels: [Double]) {
         let maxHeight = pointSize.height * 0.62
         let floor = pointSize.height * 0.14
-        let left = pointSize.width + 2
 
         NSColor(srgbRed: 0x00 / 255, green: 0x9e / 255, blue: 1, alpha: 1).setFill()
-        for bar in 0..<3 {
-            let offset = phase + Double(bar) / 3
-            // sin swings -1...1; fold it to 0.28...1 so a bar never vanishes.
-            let level = 0.28 + 0.72 * (sin(offset * 2 * .pi) + 1) / 2
-            let height = maxHeight * CGFloat(level)
-            let x = left + CGFloat(bar) * (width + gap)
+        for (bar, level) in levels.enumerated() {
+            let x = barsLeft + CGFloat(bar) * (barWidth + barGap)
             NSBezierPath(
-                roundedRect: NSRect(x: x, y: floor, width: width, height: height),
-                xRadius: width / 2, yRadius: width / 2
+                roundedRect: NSRect(x: x, y: floor, width: barWidth,
+                                    height: maxHeight * CGFloat(level)),
+                xRadius: barWidth / 2, yRadius: barWidth / 2
             ).fill()
         }
     }

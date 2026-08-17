@@ -3,14 +3,54 @@ import XCTest
 @testable import BFFCore
 
 final class StatusIconTests: XCTestCase {
-    func testIdleIconIsMenuBarSized() {
-        XCTAssertEqual(StatusIcon.idle.size, StatusIcon.pointSize)
-    }
-
-    func testPlayingFramesAreWiderToFitTheBars() {
-        XCTAssertGreaterThan(StatusIcon.playingSize.width, StatusIcon.pointSize.width)
+    /// Idle and playing must be the same size. A status item that changes
+    /// width on play/stop shoves the menu bar around and drags the open
+    /// popover sideways with it.
+    func testIdleAndPlayingAreTheSameSize() {
+        XCTAssertEqual(StatusIcon.idle.size, StatusIcon.playingSize)
         for frame in StatusIcon.playingFrames {
             XCTAssertEqual(frame.size, StatusIcon.playingSize)
+        }
+    }
+
+    func testTheFrameIsWiderThanTheRockToFitTheBars() {
+        XCTAssertGreaterThan(StatusIcon.playingSize.width, StatusIcon.pointSize.width)
+    }
+
+    /// The last bar used to run 1.5pt past the right edge and get sliced in
+    /// half. Arithmetic alone missed it, so this reads the rendered pixels:
+    /// the final column of the frame must be empty.
+    func testNoBarIsClippedByTheRightEdge() throws {
+        XCTAssertGreaterThanOrEqual(StatusIcon.playingSize.width, StatusIcon.barsRight,
+                                    "the frame is narrower than the bars it has to hold")
+
+        for (index, frame) in StatusIcon.playingFrames.enumerated() {
+            let rep = try XCTUnwrap(NSBitmapImageRep(data: try XCTUnwrap(frame.tiffRepresentation)))
+            let lastColumn = rep.pixelsWide - 1
+            var opaqueFound = false
+            for y in 0..<rep.pixelsHigh {
+                if let colour = rep.colorAt(x: lastColumn, y: y), colour.alphaComponent > 0.05 {
+                    opaqueFound = true
+                    break
+                }
+            }
+            XCTAssertFalse(opaqueFound,
+                           "frame \(index) paints its right-most column — a bar is being clipped")
+        }
+    }
+
+    /// Stopped shows the bars, so idle can't just be the bare rock.
+    func testIdleStillDrawsTheBars() throws {
+        let whole = try pixels(of: StatusIcon.idle)
+        let rockOnly = try rockRegion(of: StatusIcon.idle)
+        XCTAssertNotEqual(whole, rockOnly)
+    }
+
+    /// Idle is upright and at rest, so it is not any of the moving frames.
+    func testIdleIsStillerThanEveryPlayingFrame() throws {
+        let idle = try pixels(of: StatusIcon.idle)
+        for frame in StatusIcon.playingFrames {
+            XCTAssertNotEqual(idle, try pixels(of: frame))
         }
     }
 
