@@ -152,6 +152,15 @@ tell application "Finder"
         set arrangement of viewOptions to not arranged
         set icon size of viewOptions to 100
         set text size of viewOptions to 12
+        -- Pin these rather than inheriting this Mac's Finder defaults, which
+        -- get baked into the shipped .DS_Store and then travel to everyone
+        -- else. Icon preview in particular must be off: with it on, Finder
+        -- draws the Applications icon correctly and then replaces it with a
+        -- generated preview of the link itself — 13 bytes, nothing to render —
+        -- leaving an empty dotted outline. It looked like a broken symlink for
+        -- an afternoon; the tell is that the right icon flashes first.
+        set shows icon preview of viewOptions to false
+        set shows item info of viewOptions to false
         set background picture of viewOptions to file ".background:background.tiff"
         set position of item "$(basename "$APP")" of container window to {150, 160}
         set position of item "Applications" of container window to {410, 160}

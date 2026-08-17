@@ -188,8 +188,20 @@ time to establish, all measured rather than assumed:
   band. `dmg-background.swift` therefore renders 420pt tall for a 340pt area
   and keeps everything meaningful in the top 340.
 
+- **Pin every view option you care about; `.DS_Store` captures this Mac's
+  Finder defaults and ships them to everyone.** Icon preview was left to
+  inherit and came out `true`, which made the Applications icon draw correctly
+  and then get replaced by a generated preview of the link itself — 13 bytes,
+  nothing to render — leaving an empty dotted outline on other machines while
+  looking fine here. Read back what shipped with
+  `shows icon preview of icon view options of container window`.
+
 The arrow lines up because `dmg-background.swift` and the AppleScript read the
 same icon coordinates. Change one and you must change the other.
+
+A blank icon that **flashes correct first** is being overwritten, not failed to
+resolve. That distinction was the whole diagnosis: two rebuilds went into the
+link type and the filesystem, neither of which was involved.
 
 Getting the certificate, if it ever has to be done again:
 
