@@ -23,7 +23,17 @@ make test     # 60 tests
 ```
 
 Keep the build at **zero warnings** and the suite green. `Makefile` recipes
-need tab indentation.
+need tab indentation. The app name contains spaces, so every path built from it
+stays quoted; `Makefile` keeps it in `APP`/`DEST` for exactly that reason.
+
+**Never write `cmd | grep -q` in these scripts.** They run under `set -o
+pipefail`, where `grep -q` exits on its first match, the producer dies of
+SIGPIPE writing into the closed pipe, and the pipeline reports 141 — so the
+test reads *false precisely when it matched*. This shipped once: `make dmg`
+silently skipped notarization and printed the ad-hoc warning over a correctly
+signed app. Capture first, match in the shell: `out="$(cmd 2>&1 || true)"`,
+then `[[ "$out" == *needle* ]]`. Same trap applies to `awk '{…; exit}'` — see
+`Scripts/developer-id.sh`, which drains its input on purpose.
 
 ## Architecture
 
@@ -129,15 +139,27 @@ once.
 
 ## Distribution — current state
 
-Ad-hoc signed, so `spctl --assess` **rejects** it on any other machine.
+**Solved.** `make dmg` produces a Developer ID signed, notarized, stapled disk
+image that opens on any Mac with no warning. Verified against a *quarantined*
+copy, not just a local one — `spctl` on a file you built yourself proves very
+little, because the flag Gatekeeper keys off is only set on download. To
+re-check after changes:
 
-The scripts are ready for the real thing and switch over on their own.
-`build-app.sh` signs with a *Developer ID Application* identity whenever the
-keychain holds one — hardened runtime and secure timestamp included, because
-notarization rejects a build without them and by then the signature is set —
-and drops to ad-hoc otherwise. `make dmg` then notarizes and staples the app,
-builds the image, notarizes and staples that too, and verifies with `stapler
-validate` and `spctl`. Two Apple-side facts to keep in mind:
+```sh
+xattr -w com.apple.quarantine "0083;0;Safari;" /tmp/copy.dmg
+spctl --assess --type open --context context:primary-signature -vv /tmp/copy.dmg
+```
+
+Identity: `Developer ID Application: Christopher Bunting (2LKH737S2W)`, G2
+sub-CA, expires Aug 2031. Notary credentials are in the keychain under the
+profile `menu-bar-frequencies-forever`; override with `NOTARY_PROFILE`.
+
+`build-app.sh` signs with the Developer ID identity whenever the keychain holds
+one — hardened runtime and secure timestamp included, because notarization
+rejects a build without them and by then the signature is set — and drops to
+ad-hoc otherwise. `make dmg` then notarizes and staples the app, builds the
+image, notarizes and staples that too, and verifies with `stapler validate` and
+`spctl`. Two Apple-side facts to keep in mind:
 
 - **Stapling the app matters separately from stapling the DMG.** Notarize only
   the image and the copy dragged into `/Applications` carries no ticket, so it
@@ -146,18 +168,22 @@ validate` and `spctl`. Two Apple-side facts to keep in mind:
   ad-hoc one**, so there is no useful half-way build. `make dmg` checks for
   notary credentials *before* the slow part and stops if they are missing.
 
-Still blocked on the certificate, which cannot be created from here: the
-account has Apple Development and Apple Distribution certificates, which are
-for Xcode and the App Store and cannot sign for outside distribution. Only a
-team's **Account Holder** may create a Developer ID one. Note two team IDs are
-in play — `2LKH737S2W` (Apple Distribution) and `D2G3X47LT7` (Apple
-Development).
+Getting the certificate, if it ever has to be done again:
 
-The two App Store Connect keys in `~/.appstoreconnect/private_keys/` both
-return **401 Unauthenticated** to `notarytool history`, so they are not usable
-for notarization as-is — they are likely team keys needing `--issuer`, or lack
-the role. An app-specific password via `notarytool store-credentials` is the
-simpler route.
+- **Developer ID Application, not Installer.** They sit next to each other in
+  the portal and *Installer* signs `.pkg`s, which this project does not ship.
+  That mistake was made once and costs a full round trip.
+- **Keychain Access's Certificate Assistant fails** here with "The specified
+  item could not be found in the keychain", and the keychain config is fine —
+  login is default, unlocked, in the search list. Generate the CSR with
+  `openssl req -new -newkey rsa:2048 -nodes` instead and import the key with
+  `security import … -T /usr/bin/codesign`, which also spares you the signing
+  prompt later. One CSR can be submitted for several certificate types.
+- Two team IDs are in play: `2LKH737S2W` (the paid membership, Developer ID and
+  Apple Distribution) and `D2G3X47LT7` (Apple Development).
+- The App Store Connect keys in `~/.appstoreconnect/private_keys/` both return
+  **401** to `notarytool history` — team keys needing `--issuer`, or lacking
+  the role. An app-specific password is the simpler route.
 
 Open, unresolved: no `LICENSE` file, and the repo ships BFF.fm's Cool Rock
 artwork, which the station has under no explicit licence. Their rules invite an

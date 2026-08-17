@@ -18,7 +18,18 @@ NOTARY_PROFILE="${NOTARY_PROFILE:-menu-bar-frequencies-forever}"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 
-if codesign -dvv "$APP" 2>&1 | grep -q "Authority=Developer ID Application"; then
+IDENTITY="$(Scripts/developer-id.sh)"
+
+# Read what build-app.sh actually produced rather than trusting that it found
+# the same certificate this script did.
+#
+# Capture first, match in the shell. The obvious `codesign … | grep -q` cannot
+# be used under `set -o pipefail`: grep -q exits on its first match, codesign
+# dies of SIGPIPE writing into the closed pipe, and the pipeline reports 141 —
+# so the test reads false precisely when the app *is* signed. That shipped once
+# already, silently skipping notarization while printing the ad-hoc warning.
+SIGNATURE="$(codesign -dvv "$APP" 2>&1 || true)"
+if [[ "$SIGNATURE" == *"Authority=Developer ID Application"* ]]; then
     DISTRIBUTABLE=1
 else
     DISTRIBUTABLE=0
@@ -71,8 +82,7 @@ hdiutil create \
 
 if [ "$DISTRIBUTABLE" -eq 1 ]; then
     echo "Notarizing the disk image…"
-    codesign --force --timestamp --sign "$(security find-identity -v -p codesigning \
-        | awk -F'"' '/Developer ID Application/ { print $2; exit }')" "$DMG"
+    codesign --force --timestamp --sign "$IDENTITY" "$DMG"
     xcrun notarytool submit "$DMG" \
         --keychain-profile "$NOTARY_PROFILE" --wait
     xcrun stapler staple "$DMG"

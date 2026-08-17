@@ -54,8 +54,7 @@ rm -rf "$TMP"
 #
 # No --deep on the Developer ID path. Apple deprecated it, and this bundle has
 # no nested code for it to reach anyway: one Mach-O, an SVG, and an .icns.
-IDENTITY="$(security find-identity -v -p codesigning \
-    | awk -F'"' '/Developer ID Application/ { print $2; exit }')"
+IDENTITY="$(Scripts/developer-id.sh)"
 
 if [ -n "$IDENTITY" ]; then
     codesign --force --timestamp --options runtime --sign "$IDENTITY" "$APP"

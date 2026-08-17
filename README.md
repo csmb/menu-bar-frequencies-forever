@@ -24,29 +24,35 @@ Other targets: `make app` (build only), `make run` (build and launch),
 `make dmg` produces `build/BFF.FM – Menu Bar Frequencies Forever.dmg` — the
 app beside an `/Applications` shortcut, the layout everyone recognises.
 
-**It will not open cleanly on anyone else's Mac as things stand.** The app is
-ad-hoc signed, which is enough for the machine that built it and nothing more:
-`spctl --assess` rejects a downloaded copy outright. A friend who opens the DMG
-is told the app "cannot be opened because Apple cannot check it for malicious
-software". On macOS 15 and later the old Control-click → Open shortcut no
-longer clears this; they have to open the app, be refused, then go to **System
-Settings → Privacy & Security** and press **Open Anyway**.
+**It opens cleanly on anyone's Mac.** The app is Developer ID signed with the
+hardened runtime, notarized by Apple, and stapled — so a friend downloads it,
+drags it across, and it just opens. No warning, no Control-click trick, no trip
+through System Settings.
 
-Three ways round it, cheapest first:
+Both the app and the disk image are stapled, which matters more than it sounds:
+staple only the image and the copy dragged into `/Applications` carries no
+ticket of its own, so it has to ask Apple's server and fails on a Mac that
+happens to be offline.
 
-1. **Have them build it.** `git clone`, then `make install`. Nothing is
-   downloaded, so nothing is quarantined and Gatekeeper never gets involved.
-   Needs Xcode's command line tools and access to this repo.
-2. **Send the DMG anyway** and warn them about the Open Anyway dance. Fine
-   among friends who trust where it came from; a bad experience for anyone else.
-3. **Sign with a Developer ID certificate and notarize.** The only route that
-   opens with no warnings at all. `make dmg` already does the whole chain —
-   hardened-runtime signing, notarizing the app, stapling it, then notarizing
-   and stapling the disk image, then proving the result with `spctl`. It takes
-   that path by itself the moment two things exist, and falls back to ad-hoc
-   with a warning until then.
+`make dmg` does the whole chain — signing, notarizing, stapling, then proving
+it with `stapler validate` and `spctl`. It takes a few minutes, most of it
+waiting on Apple.
 
-### Turning notarization on
+To check it yourself the way a recipient's Mac would, set the quarantine flag
+Gatekeeper actually keys off. Assessing a file you built locally proves very
+little, because that flag is only set on download:
+
+```sh
+cp "build/BFF.FM – Menu Bar Frequencies Forever.dmg" /tmp/copy.dmg
+xattr -w com.apple.quarantine "0083;0;Safari;" /tmp/copy.dmg
+spctl --assess --type open --context context:primary-signature -vv /tmp/copy.dmg
+# accepted / source=Notarized Developer ID
+```
+
+Friends who'd rather build it themselves can `git clone` and `make install` —
+nothing is downloaded, so Gatekeeper never gets involved at all.
+
+### Setting notarization up on a new machine
 
 Both steps are one-time, and neither can be scripted from here.
 
@@ -54,9 +60,24 @@ Both steps are one-time, and neither can be scripted from here.
    [developer.apple.com](https://developer.apple.com/account/resources/certificates/list)
    → Certificates → `+` → Developer ID Application. It is free under an
    existing paid membership, but only a team's **Account Holder** may create
-   one. This is a different certificate from the *Apple Development* and
-   *Apple Distribution* ones Xcode and the App Store use — having those does
-   not help.
+   one. Take care with the name: *Developer ID **Installer*** sits right next
+   to it and signs `.pkg`s, which this project does not ship. Both differ from
+   the *Apple Development* and *Apple Distribution* certificates Xcode and the
+   App Store use — having those does not help.
+
+   If Keychain Access's Certificate Assistant fails with "The specified item
+   could not be found in the keychain", skip it and make the CSR directly:
+
+   ```sh
+   openssl req -new -newkey rsa:2048 -nodes -keyout devid.key -out devid.csr \
+       -subj "/emailAddress=<you>/CN=<your name>/C=US"
+   security import devid.key -k ~/Library/Keychains/login.keychain-db \
+       -T /usr/bin/codesign
+   ```
+
+   Upload `devid.csr`, then double-click the `.cer` Apple returns — it pairs
+   with the imported key. Delete `devid.key` afterwards; the keychain holds the
+   working copy, and an unencrypted private key should not linger on disk.
 2. **Notarization credentials**, stored once in the keychain:
 
    ```sh
