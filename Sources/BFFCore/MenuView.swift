@@ -1,48 +1,61 @@
+import AppKit
 import ServiceManagement
 import SwiftUI
 
 struct MenuView: View {
-    /// Opens in the browser, so no `app_id` — that rule covers the app's own
-    /// requests to BFF.fm services, not a page the user visits themselves.
-    static let donateURL = URL(string: "https://bff.fm/donate")!
-
     @ObservedObject var player: PlayerController
     @ObservedObject var service: NowPlayingService
+
+    @State private var page: Page = .nowPlaying
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
+
+    /// The dropdown is two screens: the music, and everything else.
+    private enum Page {
+        case nowPlaying, more
+    }
+
+    private static let background = Color(red: 239 / 255, green: 239 / 255, blue: 239 / 255)
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            showHeader
-            artwork
-            playButton
-            if case .failed(let message) = player.state {
-                Text(message)
-                    .font(.caption)
-                    .foregroundStyle(.red)
+            switch page {
+            case .nowPlaying: nowPlayingPage
+            case .more: morePage
             }
-            if service.fetchFailed {
-                Text("Can’t reach BFF.fm — info may be stale.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Divider()
-            Toggle("Launch at Login", isOn: $launchAtLogin)
-                .toggleStyle(.checkbox)
-                .onChange(of: launchAtLogin) { _, enabled in
-                    setLaunchAtLogin(enabled)
-                }
-            donateCTA
         }
         .padding(12)
         .frame(width: 280)
+        .background(Self.background)
         .background(PanelCentering())
-        .onAppear { service.setMenuOpen(true) }
+        .onAppear {
+            service.setMenuOpen(true)
+            // Always open on the music, never on wherever we were left.
+            page = .nowPlaying
+        }
         .onDisappear { service.setMenuOpen(false) }
     }
 
+    // MARK: - Now playing
+
     @ViewBuilder
-    private var showHeader: some View {
-        MarqueeText(programLine)
+    private var nowPlayingPage: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            MarqueeText(programLine)
+            Button {
+                page = .more
+            } label: {
+                // The glyph alone is only a couple of points tall, which is
+                // far too small to hit — the frame is the real target.
+                Image(systemName: "ellipsis")
+                    .imageScale(.large)
+                    .frame(width: 30, height: 24)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .help("Station links and settings")
+        }
+
         if let song = service.nowPlaying?.songLine {
             MarqueeText(song)
             if let album = service.nowPlaying?.album {
@@ -50,6 +63,24 @@ struct MenuView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+        }
+
+        artwork
+
+        HStack(spacing: 8) {
+            playButton
+            donateButton
+        }
+
+        if case .failed(let message) = player.state {
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.red)
+        }
+        if service.fetchFailed {
+            Text("Can’t reach BFF.fm — info may be stale.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -88,9 +119,8 @@ struct MenuView: View {
             case .stopped, .failed:
                 Label("Play", systemImage: "play.fill")
             case .loading:
-                HStack {
-                    ProgressView()
-                        .controlSize(.small)
+                HStack(spacing: 5) {
+                    ProgressView().controlSize(.small)
                     Text("Connecting…")
                 }
             case .playing:
@@ -99,25 +129,80 @@ struct MenuView: View {
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
+        .frame(maxWidth: .infinity)
     }
 
-    /// BFF.fm is listener-funded, so the dropdown carries a standing ask —
-    /// one line of why, then the action, sharing a row with Quit.
-    private var donateCTA: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Become a Bestie, and your tax-deductible monthly or quarterly sustaining donation will support BFF.fm all year long!")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            HStack {
-                Link(destination: Self.donateURL) {
-                    Label("Donate", systemImage: "heart.fill")
-                }
-                .buttonStyle(.bordered)
-                Spacer()
-                Button("Quit") {
-                    NSApplication.shared.terminate(nil)
-                }
+    private var donateButton: some View {
+        Link(destination: StationLinks.donate) {
+            Label("Donate", systemImage: "heart.fill")
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.large)
+    }
+
+    // MARK: - More
+
+    @ViewBuilder
+    private var morePage: some View {
+        Button {
+            page = .nowPlaying
+        } label: {
+            Label("Now Playing", systemImage: "chevron.left")
+                .font(.subheadline)
+        }
+        .buttonStyle(.borderless)
+
+        Divider()
+
+        sectionLabel("Station")
+        linkGrid(StationLinks.station)
+
+        sectionLabel("Follow")
+        linkGrid(StationLinks.social)
+
+        Divider()
+
+        Text("Become a Bestie, and your tax-deductible monthly or quarterly sustaining donation will support BFF.fm all year long!")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+
+        Toggle("Launch at Login", isOn: $launchAtLogin)
+            .toggleStyle(.checkbox)
+            .onChange(of: launchAtLogin) { _, enabled in
+                setLaunchAtLogin(enabled)
+            }
+
+        HStack {
+            Link(destination: StationLinks.donate) {
+                Label("Donate", systemImage: "heart.fill")
+            }
+            .buttonStyle(.bordered)
+            Spacer()
+            Button("Quit") {
+                NSApplication.shared.terminate(nil)
+            }
+        }
+    }
+
+    private func sectionLabel(_ text: String) -> some View {
+        Text(text.uppercased())
+            .font(.caption2)
+            .tracking(0.6)
+            .foregroundStyle(.tertiary)
+    }
+
+    /// Two columns keeps six links inside 280pt without truncating any of them.
+    private func linkGrid(_ items: [StationLinks.Item]) -> some View {
+        LazyVGrid(
+            columns: [GridItem(.flexible(), alignment: .leading),
+                      GridItem(.flexible(), alignment: .leading)],
+            alignment: .leading,
+            spacing: 4
+        ) {
+            ForEach(items) { item in
+                Link(item.name, destination: item.url)
+                    .font(.subheadline)
             }
         }
     }
