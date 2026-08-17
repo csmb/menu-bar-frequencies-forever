@@ -76,7 +76,8 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         let host = NSHostingController(
             rootView: MenuView(player: model.player,
                                service: model.service,
-                               shows: model.shows)
+                               shows: model.shows,
+                               navigation: model.navigation)
         )
         host.sizingOptions = .preferredContentSize
         popover.contentViewController = host
@@ -129,13 +130,15 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     // MARK: - NSPopoverDelegate
 
     nonisolated func popoverWillShow(_ notification: Notification) {
-        Task { @MainActor in model.service.setMenuOpen(true) }
+        // The popover reuses one hosting controller, so the view's onAppear
+        // fires once for the life of the app. Per-open work belongs here.
+        Task { @MainActor in model.dropdownWillOpen() }
     }
 
     nonisolated func popoverDidClose(_ notification: Notification) {
         Task { @MainActor in
             stopWatchingForOutsideClicks()
-            model.service.setMenuOpen(false)
+            model.dropdownDidClose()
         }
     }
 }

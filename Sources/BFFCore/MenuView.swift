@@ -6,14 +6,9 @@ struct MenuView: View {
     @ObservedObject var player: PlayerController
     @ObservedObject var service: NowPlayingService
     @ObservedObject var shows: ShowDirectory
+    @ObservedObject var navigation: MenuNavigation
 
-    @State private var page: Page = .nowPlaying
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
-
-    /// The dropdown is two screens: the music, and everything else.
-    private enum Page {
-        case nowPlaying, more
-    }
 
     /// #efefef in light, #252525bf in dark — the dark one is translucent, so
     /// the panel keeps a little of the vibrancy behind it.
@@ -27,7 +22,7 @@ struct MenuView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            switch page {
+            switch navigation.page {
             case .nowPlaying: nowPlayingPage
             case .more: morePage
             }
@@ -35,14 +30,8 @@ struct MenuView: View {
         .padding(12)
         .frame(width: 280)
         .background(Self.background)
-        .onAppear {
-            shows.loadIfNeeded()
-            resolvePresenter()
-            // Always open on the music, never on wherever we were left.
-            page = .nowPlaying
-        }
-        .onChange(of: service.nowPlaying?.program) { _, _ in resolvePresenter() }
-        .onChange(of: shows.urlsByShow.count) { _, _ in resolvePresenter() }
+        .onChange(of: service.nowPlaying?.program) { _, _ in onMetadataChanged() }
+        .onChange(of: shows.urlsByShow.count) { _, _ in onMetadataChanged() }
     }
 
     // MARK: - Now playing
@@ -54,7 +43,7 @@ struct MenuView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Button {
-                page = .more
+                navigation.page = .more
             } label: {
                 // The glyph alone is only a couple of points tall, which is
                 // far too small to hit — the frame is the real target.
@@ -120,9 +109,9 @@ struct MenuView: View {
         return line
     }
 
-    /// The DJ's page lives on the show's page, so this can only run once the
-    /// schedule has told us where the show is.
-    private func resolvePresenter() {
+    /// The show can change while the dropdown is open, and the schedule may
+    /// land after it opened — either means a new DJ page to look up.
+    private func onMetadataChanged() {
         guard let now = service.nowPlaying,
               let presenter = now.presenter,
               let program = now.program
@@ -234,7 +223,7 @@ struct MenuView: View {
     @ViewBuilder
     private var morePage: some View {
         Button {
-            page = .nowPlaying
+            navigation.page = .nowPlaying
         } label: {
             Label("Now Playing", systemImage: "chevron.left")
                 .font(.subheadline)
@@ -250,11 +239,6 @@ struct MenuView: View {
         linkGrid(StationLinks.social)
 
         Divider()
-
-        Text("Become a Bestie, and your tax-deductible monthly or quarterly sustaining donation will support BFF.fm all year long!")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
 
         HStack(spacing: 8) {
             launchAtLoginButton
