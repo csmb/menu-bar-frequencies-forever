@@ -12,11 +12,20 @@ cd "$(dirname "$0")/.."
 Scripts/build-app.sh
 
 APP="build/BFF.FM – Menu Bar Frequencies Forever.app"
-DMG="build/BFF.FM – Menu Bar Frequencies Forever.dmg"
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
+# Versioned, so a friend can tell two downloads apart and a browser does not
+# quietly rename the second one to "… -2.dmg". Info.plist is the single source:
+# `make release VERSION=1.1` stamps it there and it reaches the filename, the
+# volume name, and the app's own About box from that one place.
+DMG="build/BFF.FM – Menu Bar Frequencies Forever $VERSION.dmg"
 NOTARY_PROFILE="${NOTARY_PROFILE:-menu-bar-frequencies-forever}"
+
+# STAGE becomes the disk image root, so nothing may be written into it that is
+# not meant to ship. The notarization zip goes in WORK instead — putting it in
+# STAGE shipped a second copy of the app inside every DMG, doubling its size.
 STAGE="$(mktemp -d)"
-trap 'rm -rf "$STAGE"' EXIT
+WORK="$(mktemp -d)"
+trap 'rm -rf "$STAGE" "$WORK"' EXIT
 
 IDENTITY="$(Scripts/developer-id.sh)"
 
@@ -60,8 +69,8 @@ fi
 
 if [ "$DISTRIBUTABLE" -eq 1 ]; then
     echo "Notarizing the app…"
-    ditto -c -k --keepParent "$APP" "$STAGE/app.zip"
-    xcrun notarytool submit "$STAGE/app.zip" \
+    ditto -c -k --keepParent "$APP" "$WORK/app.zip"
+    xcrun notarytool submit "$WORK/app.zip" \
         --keychain-profile "$NOTARY_PROFILE" --wait
     xcrun stapler staple "$APP"
 fi
@@ -70,6 +79,19 @@ fi
 # layout everyone recognises.
 cp -R "$APP" "$STAGE/"
 ln -s /Applications "$STAGE/Applications"
+
+# Whatever is in STAGE ships, and a stray file here is invisible until someone
+# mounts the image and reads it. Exactly two entries belong: the app and the
+# symlink you drag it onto. This check exists because app.zip once did not
+# announce itself — it only showed up as a DMG that had quietly doubled in size.
+UNEXPECTED="$(ls -A "$STAGE" | grep -vxF -e "$(basename "$APP")" -e "Applications" || true)"
+if [ -n "$UNEXPECTED" ]; then
+    {
+        echo "error: unexpected entries staged for the disk image; they would ship:"
+        echo "$UNEXPECTED"
+    } >&2
+    exit 1
+fi
 
 rm -f "$DMG"
 hdiutil create \
