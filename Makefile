@@ -1,7 +1,10 @@
-.PHONY: app install run test clean
+.PHONY: app dmg install run test clean
 
 app:
 	Scripts/build-app.sh
+
+dmg:
+	Scripts/make-dmg.sh
 
 install: app
 	rm -rf /Applications/BFF.fm.app
