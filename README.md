@@ -5,7 +5,8 @@ lives in your menu bar: click it for the current show, the song that's playing,
 album art, a play/stop button, and a link to donate to the station. A second
 page holds BFF.fm's own links, a Launch at Login toggle, and Quit. This is not
 an official BFF.fm app, it's built using
-[BFF.fm's Developer Platform](https://developer.bff.fm/).
+[BFF.fm's Developer Platform](https://developer.bff.fm/). Cool Rock artwork ©
+[BFF.fm](https://bff.fm/).
 
 ![The dropdown: the current show, the track playing, album art, and a play/stop
 button](docs/screenshots/demo.gif)
@@ -41,4 +42,7 @@ new version, then build the image), `make test` (unit tests), `make clean`.
   while playing or while the dropdown is open.
 - Built with SwiftPM only; `Scripts/build-app.sh` assembles the `.app`.
 
-Cool Rock artwork © [BFF.fm](https://bff.fm/). Not an official BFF.fm app.
+## License
+
+The code is [MIT licensed](LICENSE). The Cool Rock artwork belongs to BFF.fm
+and is not covered by it.

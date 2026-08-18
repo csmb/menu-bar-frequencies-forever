@@ -284,9 +284,16 @@ Getting the certificate, if it ever has to be done again:
   **401** to `notarytool history` — team keys needing `--issuer`, or lacking
   the role. An app-specific password is the simpler route.
 
-Open, unresolved: no `LICENSE` file, and the repo ships BFF.fm's Cool Rock
-artwork, which the station has under no explicit licence. Their rules invite an
-introduction at `tech@bff.fm`.
+The code is MIT licensed. **That covers the code only** — the repo also ships
+BFF.fm's Cool Rock artwork, which the station has under no explicit licence and
+which is therefore not ours to sublicense. The README says so; keep the two
+distinct if the licence is ever revisited, and do not let a tidy-up fold the
+artwork into the MIT grant.
+
+Open with the station, introduced by email on 2026-08-17: whether the Cool Rock
+may be used at all, whether the name may lean on theirs, and whether reading a
+show's page for its `/people/` links is welcome. Their answer may mean changing
+the icon, the app name, or `ShowDirectory`.
 
 ## History worth knowing
 
