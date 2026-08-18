@@ -3,7 +3,9 @@
 A tiny macOS menu bar app that streams [BFF.fm](https://bff.fm/). The Cool Rock
 lives in your menu bar: click it for the current show, the song that's playing,
 album art, a play/stop button, and a link to donate to the station. A second
-page holds BFF.fm's own links, a Launch at Login toggle, and Quit.
+page holds BFF.fm's own links, a Launch at Login toggle, and Quit. This is not
+an official BFF.fm app, it's built using
+[BFF.fm's Developer Platform](https://developer.bff.fm/).
 
 ![The dropdown: the current show, the track playing, album art, and a play/stop
 button](docs/screenshots/demo.gif)
