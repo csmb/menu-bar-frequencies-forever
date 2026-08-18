@@ -184,8 +184,19 @@ spctl --assess --type open --context context:primary-signature -vv /tmp/copy.dmg
 ```
 
 Identity: `Developer ID Application: Christopher Bunting (2LKH737S2W)`, G2
-sub-CA, expires Aug 2031. Notary credentials are in the keychain under the
-profile `menu-bar-frequencies-forever`; override with `NOTARY_PROFILE`.
+sub-CA, expires Aug 2031. Notary credentials live in the keychain under the
+profile `menu-bar-frequencies-forever`; override with `NOTARY_PROFILE`. On a
+new machine, or after an Apple ID password change revokes app-specific
+passwords, store them again with:
+
+```sh
+xcrun notarytool store-credentials "menu-bar-frequencies-forever" \
+    --apple-id <your-apple-id> --team-id 2LKH737S2W \
+    --password <app-specific-password>   # appleid.apple.com > Sign-In and Security
+```
+
+`make dmg` prints this itself when the certificate is present and the
+credentials are not, so the instruction arrives when it is needed.
 
 `build-app.sh` signs with the Developer ID identity whenever the keychain holds
 one — hardened runtime and secure timestamp included, because notarization
