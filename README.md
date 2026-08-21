@@ -2,9 +2,9 @@
 
 A tiny macOS menu bar app that streams [BFF.fm](https://bff.fm/). The Cool Rock
 lives in your menu bar: click it for the current show, the song that's playing,
-album art, a play/stop button, and a link to donate to the station. A second
-page holds BFF.fm's own links, a Launch at Login toggle, and Quit. This is not
-an official BFF.fm app, it's built using
+album art, a play/stop button, a volume slider for the stream alone, and a link
+to donate to the station. A second page holds BFF.fm's own links, a Launch at
+Login toggle, and Quit. This is not an official BFF.fm app, it's built using
 [BFF.fm's Developer Platform](https://developer.bff.fm/). Cool Rock artwork ©
 [BFF.fm](https://bff.fm/).
 
@@ -40,6 +40,9 @@ new version, then build the image), `make test` (unit tests), `make clean`.
 - Show + track metadata comes from BFF.fm's public API
   (`data.bff.fm/api/data/onair/now.json`), polled every 30 seconds — and only
   while playing or while the dropdown is open.
+- The volume slider sets the stream's own level, multiplied against your
+  system volume — so the radio can sit quieter than everything else. It is
+  remembered between launches.
 - Built with SwiftPM only; `Scripts/build-app.sh` assembles the `.app`.
 
 ## License

@@ -20,16 +20,57 @@ final class PlayerController: ObservableObject {
 
     @Published private(set) var state: State = .stopped
 
+    static let volumeKey = "streamVolume"
+
+    /// The stream's own level, 0...1, multiplied against the system volume —
+    /// so the radio can sit under everything else on the Mac, which is the
+    /// point of having it. Persisted, because a level you must set again on
+    /// every launch is not really a preference.
+    @Published var volume: Double = 1 {
+        didSet {
+            let clamped = Self.clamp(volume)
+            if clamped != volume {
+                volume = clamped        // re-enters once, then settles
+                return
+            }
+            defaults.set(volume, forKey: Self.volumeKey)
+            player?.volume = Float(volume)
+        }
+    }
+
+    /// What the live player is actually set to. Visible for testing: `player`
+    /// stays private so nothing outside can drive it.
+    var playerVolume: Float? { player?.volume }
+
     private var player: AVPlayer?
     private var cancellables: Set<AnyCancellable> = []
     private var watchdog: Task<Void, Never>?
     private let loadingTimeout: Duration
+    private let defaults: UserDefaults
+    private let makePlayer: (AVPlayerItem) -> AVPlayer
 
-    /// - Parameter loadingTimeout: how long the stream may sit in `.loading` —
-    ///   connecting, or stalled mid-play — before we call it failed. Injectable
-    ///   so tests need not wait out the real timeout.
-    init(loadingTimeout: Duration = .seconds(20)) {
+    /// - Parameters:
+    ///   - loadingTimeout: how long the stream may sit in `.loading` —
+    ///     connecting, or stalled mid-play — before we call it failed.
+    ///     Injectable so tests need not wait out the real timeout.
+    ///   - defaults: where the volume is remembered. Injectable so tests do
+    ///     not read or write the level this machine is actually using.
+    ///   - makePlayer: builds the AVPlayer for a stream item. Injectable so a
+    ///     test can exercise `play()` without opening the stream.
+    init(loadingTimeout: Duration = .seconds(20),
+         defaults: UserDefaults = .standard,
+         makePlayer: @escaping (AVPlayerItem) -> AVPlayer = AVPlayer.init(playerItem:)) {
         self.loadingTimeout = loadingTimeout
+        self.defaults = defaults
+        self.makePlayer = makePlayer
+        // Not `defaults.double(forKey:)`: that answers 0 for a key nobody has
+        // written, so a fresh install would start silent and read as broken.
+        self.volume = defaults.object(forKey: Self.volumeKey)
+            .map { Self.clamp(($0 as? Double) ?? 1) } ?? 1
+    }
+
+    private static func clamp(_ value: Double) -> Double {
+        min(max(value, 0), 1)
     }
 
     func toggle() {
@@ -41,7 +82,11 @@ final class PlayerController: ObservableObject {
         let asset = AVURLAsset(url: Self.streamURL,
                                options: [AVURLAssetHTTPUserAgentKey: BFFAPI.userAgent])
         let item = AVPlayerItem(asset: asset)
-        let player = AVPlayer(playerItem: item)
+        let player = makePlayer(item)
+        // Every play() builds a new player, and a new player starts at full
+        // volume — so without this the stream comes back loud the first time
+        // you press Stop then Play.
+        player.volume = Float(volume)
         self.player = player
         transition(to: .loading)
 

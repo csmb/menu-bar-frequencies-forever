@@ -65,6 +65,8 @@ struct MenuView: View {
 
         artwork
 
+        volumeRow
+
         HStack(spacing: 8) {
             playButton
             donateButton
@@ -173,6 +175,33 @@ struct MenuView: View {
             }
             .frame(width: 256, height: 256)
             .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+    }
+
+    /// The stream's own level, under the artwork and above the transport.
+    ///
+    /// The glyph tracks the level rather than decorating the row — an app left
+    /// at 10% and forgotten otherwise reads as broken rather than quiet. Its
+    /// frame is fixed because the symbols are not the same width, and a slider
+    /// that shifted sideways as you dragged would be its own small bug.
+    private var volumeRow: some View {
+        HStack(spacing: 8) {
+            Image(systemName: volumeSymbol)
+                .foregroundStyle(.secondary)
+                .frame(width: 18, alignment: .leading)
+                .accessibilityHidden(true)
+            Slider(value: $player.volume, in: 0...1)
+                .controlSize(.small)
+                .accessibilityLabel("Stream volume")
+        }
+    }
+
+    private var volumeSymbol: String {
+        switch player.volume {
+        case ..<0.001: "speaker.slash.fill"
+        case ..<0.34: "speaker.wave.1.fill"
+        case ..<0.67: "speaker.wave.2.fill"
+        default: "speaker.wave.3.fill"
         }
     }
 

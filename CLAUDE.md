@@ -4,7 +4,7 @@ Guidance for Claude Code working in this repo.
 
 A macOS menu bar app that streams [BFF.fm](https://bff.fm/), San Francisco
 community radio. Public repo: `github.com/csmb/menu-bar-frequencies-forever`,
-with the notarized DMG attached to the `v1.0` release.
+with the notarized DMG attached to each release.
 
 - **Spec:** `docs/superpowers/specs/2026-08-16-menu-bar-frequencies-forever-design.md`
   — the binding authority for anything it and the plan disagree on, *except*
@@ -22,7 +22,7 @@ one-line executable calling `BFFMenuBarApp.main()`.
 make app      # build/BFF.FM – Menu Bar Frequencies Forever.app
 make install  # copies it to /Applications
 make dmg      # drag-to-install disk image
-make test     # 60 tests
+make test     # 75 tests
 ```
 
 Keep the build at **zero warnings** and the suite green. `Makefile` recipes
@@ -101,8 +101,16 @@ more than it must. Two rules hold this up, and both have been broken once:
 `[a-z0-9]*` and no track title can reach outside the path it is interpolated
 into. Do not "improve" it into something that preserves punctuation.
 
-The app writes nothing to disk: no `UserDefaults`, no caches, no files. The
-README's claim that it stores nothing is literally true, and worth keeping so.
+The app writes exactly one thing to disk: `streamVolume`, its own playback
+level. Nothing of BFF.fm's is stored — no metadata, no schedule, no artwork
+kept by us — so what was said to the station still holds. `defaults read
+com.bunting.menu-bar-frequencies-forever` should stay a one-key dictionary;
+if it ever grows, check whether the new key is theirs before shipping it.
+
+Responses do land in `URLSession`'s shared HTTP cache, which is not ours and
+obeys their headers: `no-cache, must-revalidate` on the API, `immutable` on
+artwork. Leave it alone — turning it off would re-download 185KB covers
+repeatedly, which is worse for them, not better.
 
 ### Link slugs — the important part
 
@@ -151,6 +159,14 @@ the bug would have produced the same wrong assertion.
   accessor's absolute fallback path masks the failure.
 - The status item is a fixed width. Resizing it on play/stop shoves the menu
   bar around and drags the open popover sideways.
+- **`UserDefaults.double(forKey:)` answers 0 for a key nobody has written.**
+  Read the volume that way and every fresh install starts silent, presses
+  Play, hears nothing and concludes the app is broken. `PlayerController`
+  checks `object(forKey:)` for presence and falls back to full; there is a
+  test named after that failure.
+- **`play()` builds a new `AVPlayer` every time**, to rejoin the live edge —
+  and a new player starts at full volume. Anything that must survive a
+  stop/play cycle has to be re-applied there, not just set once.
 
 ## Verifying UI changes
 
