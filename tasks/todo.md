@@ -21,10 +21,9 @@ re-points `picker.player` at every rebuilt player.
 - [x] AirPlay routing bug found and fixed: `AVRoutePickerView.player` must
       stay nil on macOS (forum threads 708248/744128) — attachment removed,
       picker now routes app-scoped; `RoutePickerTests` pins `player == nil`
-- [ ] User re-test on HomePods: select while playing → audio moves; then
-      stop/play and let a reconnect happen → confirm the route sticks
-      (app-scoped, so it should); check whether the volume slider still
-      affects AirPlay output (forum reports say it may not)
+- [x] User re-test on HomePods (2026-08-23): routing works with the nil-player
+      picker. Minor open question, cosmetic only: whether the volume slider
+      governs AirPlay output (forum reports say AVPlayer.volume may not).
 - [ ] A real lid-close/reopen wake while playing (unit- and live-tested via
       simulated paths only)
 
