@@ -1,5 +1,16 @@
 # Lessons
 
+- **2026-08-23 — The "correct-looking" API attachment was the bug.** AirPlay
+  routing failed (HomePods checked, audio stayed local) precisely because
+  `AVRoutePickerView.player` was set — the macOS-only, forum-documented,
+  Apple-unacknowledged failure mode (threads 708248, 744128). The tests I
+  wrote for the attachment lifecycle all passed while pinning broken
+  behaviour, because they tested our wiring, not the platform's routing.
+  For platform-integration features, a working reference implementation
+  (Radiola never sets `player`) is worth more than the API's apparent
+  contract; when a system control mysteriously no-ops, search the developer
+  forums for the exact symptom before adding more wiring.
+
 - **2026-08-23 — Don't drive the popover with synthetic clicks at all.** The
   repo already warned CGEvent clicks were fragile; this session established
   they fail even when done by the book — popover confirmed open by screenshot

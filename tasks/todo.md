@@ -18,9 +18,13 @@ re-points `picker.player` at every rebuilt player.
 - [x] Verification: popover screenshot shows the AirPlay button in the volume
       row; `LIVE_RECONNECT=1` gated test proves play → drop → `.reconnecting`
       → `.playing` against the real stream in ~5s
-- [ ] AirPlay route survives a stop→play / reconnect rebuild — needs real
-      AirPlay hardware; if the route drops, the fix is one persistent
-      `AVPlayer` + `replaceCurrentItem` (live edge comes from the fresh item)
+- [x] AirPlay routing bug found and fixed: `AVRoutePickerView.player` must
+      stay nil on macOS (forum threads 708248/744128) — attachment removed,
+      picker now routes app-scoped; `RoutePickerTests` pins `player == nil`
+- [ ] User re-test on HomePods: select while playing → audio moves; then
+      stop/play and let a reconnect happen → confirm the route sticks
+      (app-scoped, so it should); check whether the volume slider still
+      affects AirPlay output (forum reports say it may not)
 - [ ] A real lid-close/reopen wake while playing (unit- and live-tested via
       simulated paths only)
 

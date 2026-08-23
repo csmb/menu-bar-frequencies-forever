@@ -175,8 +175,17 @@ the bug would have produced the same wrong assertion.
   and a new player starts at full volume. Anything that must survive a
   stop/play cycle has to be re-applied there, not just set once. Auto-reconnect
   and wake-from-sleep rebuild through the same path with nobody pressing
-  anything, so the list of re-applied things is load-bearing: today it is the
-  volume and the AirPlay picker's `player`, both re-pointed in `open()`.
+  anything, so the list of re-applied things is load-bearing: today it is
+  exactly the volume, re-applied in `open()`.
+- **Never set `AVRoutePickerView.player` on macOS.** It is the obvious wiring
+  and it shipped here once: the picker's checkboxes toggled and the audio
+  never left the Mac (Apple Developer Forums threads 708248 and 744128, no
+  acknowledgment from Apple). With `player` left nil the picker routes the
+  app's CoreMedia audio as a whole — which is our one AVPlayer, works with
+  HomePods, and needs no re-applying across rebuilds. `RoutePickerTests` pins
+  `player == nil`; the caveats that come with app-scoped routing are that
+  nothing can read or set the route programmatically, and `AVPlayer.volume`
+  may not govern AirPlay output.
 
 ## Verifying UI changes
 

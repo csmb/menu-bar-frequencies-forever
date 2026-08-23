@@ -1,6 +1,5 @@
 import AppKit
 import AVFoundation
-import AVKit
 import Combine
 import Foundation
 
@@ -85,18 +84,6 @@ final class PlayerController: ObservableObject {
     /// Not in `cancellables` — teardown() clears those with every rebuild,
     /// and this subscription lasts the controller's life.
     private var wakeObserver: AnyCancellable?
-    /// Weak: the popover's view hierarchy owns the picker; we only point it
-    /// at each rebuilt player. `player` itself stays private — pushing the
-    /// reference into the picker keeps it that way.
-    private weak var routePicker: AVRoutePickerView?
-
-    /// Adopts the AirPlay picker: it is handed the current player at once and
-    /// every replacement after — each play() and each reconnect builds a new
-    /// AVPlayer, and a picker left pointing at the old one routes nothing.
-    func attachRoutePicker(_ picker: AVRoutePickerView) {
-        routePicker = picker
-        picker.player = player
-    }
     private let loadingTimeout: Duration
     private let reconnectDelays: [Duration]
     private let defaults: UserDefaults
@@ -172,7 +159,6 @@ final class PlayerController: ObservableObject {
         // you press Stop then Play.
         player.volume = Float(volume)
         self.player = player
-        routePicker?.player = player
         transition(to: .loading)
 
         player.publisher(for: \.timeControlStatus)
@@ -300,6 +286,5 @@ final class PlayerController: ObservableObject {
         cancellables.removeAll()
         player?.pause()
         player = nil
-        routePicker?.player = nil
     }
 }

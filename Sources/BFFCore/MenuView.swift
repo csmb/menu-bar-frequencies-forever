@@ -193,7 +193,7 @@ struct MenuView: View {
             Slider(value: $player.volume, in: 0...1)
                 .controlSize(.small)
                 .accessibilityLabel("Stream volume")
-            RoutePickerView(player: player)
+            RoutePickerView()
                 .frame(width: 24, height: 20)
                 .help("AirPlay")
         }
