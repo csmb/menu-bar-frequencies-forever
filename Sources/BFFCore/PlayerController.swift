@@ -5,6 +5,15 @@ import Foundation
 /// Wraps AVPlayer on the BFF.fm live MP3 stream. Every play() builds a fresh
 /// AVPlayerItem so playback rejoins the live edge instead of resuming a stale
 /// buffer; stop() discards the player entirely.
+///
+/// `automaticallyWaitsToMinimizeStalling` is deliberately left at its default.
+/// Turning it off is the obvious tune for live audio and it was measured:
+/// median time-to-ready 0.938s against 0.973s, a 35ms difference inside a
+/// sample spread of 0.84-1.26s — noise. The wait is the CDN's first byte, not
+/// AVPlayer's buffering. It also costs something real: `timeControlStatus`
+/// flips to playing at ~13ms while the buffer is still empty, so the dropdown
+/// would show Stop through nearly a second of silence instead of Connecting.
+/// See TimeToAudioMeasurement.
 @MainActor
 final class PlayerController: ObservableObject {
     enum State: Equatable {
@@ -41,6 +50,16 @@ final class PlayerController: ObservableObject {
     /// What the live player is actually set to. Visible for testing: `player`
     /// stays private so nothing outside can drive it.
     var playerVolume: Float? { player?.volume }
+
+    /// Whether enough audio is buffered to play without stalling. Visible for
+    /// measurement: `state` reaching `.playing` is not the same thing as sound
+    /// coming out, and with `automaticallyWaitsToMinimizeStalling` off the two
+    /// diverge — the status flips at once while the buffer is still empty.
+    /// `currentTime()` is no use here; a continuous Icecast stream has no
+    /// timeline and reports indefinite.
+    var isReadyForSmoothPlayback: Bool {
+        player?.currentItem?.isPlaybackLikelyToKeepUp ?? false
+    }
 
     private var player: AVPlayer?
     private var cancellables: Set<AnyCancellable> = []
