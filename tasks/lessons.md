@@ -1,0 +1,17 @@
+# Lessons
+
+- **2026-08-23 — Don't drive the popover with synthetic clicks at all.** The
+  repo already warned CGEvent clicks were fragile; this session established
+  they fail even when done by the book — popover confirmed open by screenshot
+  diff, coordinates verified inside it, and the click still dismissed the
+  popover without pressing the button under it. Also burned time twice on
+  capture regions: screenshot pixel coordinates are 2× the screen-point
+  coordinates `screencapture -R` wants, and a region that shows the terminal
+  proves nothing about the popover unless the region actually covers the
+  popover. The approaches that worked: judge playback by diffing two captures
+  of the status-icon region ~0.7s apart (the icon animates only while active),
+  and prove stream behaviour with env-gated live tests (`LIVE_RECONNECT=1`)
+  instead of any UI automation. Recorded in CLAUDE.md's "Verifying UI changes".
+- **2026-08-23 — `lsof` on the app process is not evidence about AVPlayer.**
+  Its network activity did not show under the app's pid; absence of a
+  connection there says nothing either way. Use the app's own signals.

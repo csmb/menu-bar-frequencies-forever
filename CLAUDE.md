@@ -96,6 +96,13 @@ more than it must. Two rules hold this up, and both have been broken once:
   recorded anything, and the throttle looked right while doing nothing. The
   schedule feed has its own `retryFloor` for the same reason.
 
+A third rule joined them with auto-reconnect: **a drop costs at most six
+connection attempts.** The backoff runs 2→32s and then settles into `.failed`
+rather than retrying forever; reconnect arms only after playback actually
+started, so Play against a down stream still fails within one watchdog. Wake
+from sleep restarts with a fresh budget because the network story genuinely
+changed. Don't "improve" any of this into an unbounded retry loop.
+
 `MusicLinks.slug` is safe by construction — it splits on
 `CharacterSet.alphanumerics.inverted` and joins what survives, so a slug is
 `[a-z0-9]*` and no track title can reach outside the path it is interpolated
@@ -166,7 +173,10 @@ the bug would have produced the same wrong assertion.
   test named after that failure.
 - **`play()` builds a new `AVPlayer` every time**, to rejoin the live edge —
   and a new player starts at full volume. Anything that must survive a
-  stop/play cycle has to be re-applied there, not just set once.
+  stop/play cycle has to be re-applied there, not just set once. Auto-reconnect
+  and wake-from-sleep rebuild through the same path with nobody pressing
+  anything, so the list of re-applied things is load-bearing: today it is the
+  volume and the AirPlay picker's `player`, both re-pointed in `open()`.
 
 ## Verifying UI changes
 
@@ -180,7 +190,13 @@ whatever is behind it. Coordinate clicks with CGEvent work but are fragile,
 because the popover auto-dismisses whenever anything takes focus; several
 strayed into the user's browser. Prefer: one bash invocation, no intervening
 `osascript`, and a screenshot diff to confirm the popover is open *before*
-clicking anything.
+clicking anything. Even that is not enough to press a button: a CGEvent click
+at coordinates verified to be inside the confirmed-open popover has dismissed
+it without the button firing. To check playback headless, skip the mouse —
+the status icon animates only while playback is active, so two icon-region
+captures ~0.7s apart differ exactly when sound should be coming out; and the
+env-gated live tests (`LIVE_RECONNECT=1`, `MEASURE_TIME_TO_AUDIO=1`) exercise
+the real stream with no UI at all.
 
 **Mute before testing playback** (`set volume output muted true`) and restore
 the previous setting afterwards. Audio has started unintentionally more than

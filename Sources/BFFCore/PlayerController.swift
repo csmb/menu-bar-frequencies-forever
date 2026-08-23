@@ -1,4 +1,6 @@
+import AppKit
 import AVFoundation
+import AVKit
 import Combine
 import Foundation
 
@@ -19,10 +21,11 @@ final class PlayerController: ObservableObject {
     enum State: Equatable {
         case stopped
         case loading
+        case reconnecting
         case playing
         case failed(String)
 
-        var isActive: Bool { self == .loading || self == .playing }
+        var isActive: Bool { self == .loading || self == .reconnecting || self == .playing }
     }
 
     static let streamURL = BFFAPI.stream
@@ -61,10 +64,41 @@ final class PlayerController: ObservableObject {
         player?.currentItem?.isPlaybackLikelyToKeepUp ?? false
     }
 
+    /// 2, 4, 8, 16, 32 seconds: five retries over about a minute of gaps,
+    /// which covers a lid reopened while Wi-Fi rejoins, and stays a good
+    /// guest — at most six connection attempts per incident.
+    nonisolated static let defaultReconnectDelays: [Duration] =
+        [.seconds(2), .seconds(4), .seconds(8), .seconds(16), .seconds(32)]
+
     private var player: AVPlayer?
     private var cancellables: Set<AnyCancellable> = []
     private var watchdog: Task<Void, Never>?
+    /// True from play() until stop() or giving up — the difference between a
+    /// drop worth chasing and a stream the user told to be quiet.
+    private var wantsPlayback = false
+    /// Reconnect recovers drops, not failed first connects: it arms only once
+    /// this press of Play has actually produced playback, so Play against a
+    /// down stream still fails honestly within one watchdog.
+    private var hasPlayedSinceIntent = false
+    private var reconnectAttempt = 0
+    private var reconnectTask: Task<Void, Never>?
+    /// Not in `cancellables` — teardown() clears those with every rebuild,
+    /// and this subscription lasts the controller's life.
+    private var wakeObserver: AnyCancellable?
+    /// Weak: the popover's view hierarchy owns the picker; we only point it
+    /// at each rebuilt player. `player` itself stays private — pushing the
+    /// reference into the picker keeps it that way.
+    private weak var routePicker: AVRoutePickerView?
+
+    /// Adopts the AirPlay picker: it is handed the current player at once and
+    /// every replacement after — each play() and each reconnect builds a new
+    /// AVPlayer, and a picker left pointing at the old one routes nothing.
+    func attachRoutePicker(_ picker: AVRoutePickerView) {
+        routePicker = picker
+        picker.player = player
+    }
     private let loadingTimeout: Duration
+    private let reconnectDelays: [Duration]
     private let defaults: UserDefaults
     private let makePlayer: (AVPlayerItem) -> AVPlayer
 
@@ -72,20 +106,40 @@ final class PlayerController: ObservableObject {
     ///   - loadingTimeout: how long the stream may sit in `.loading` —
     ///     connecting, or stalled mid-play — before we call it failed.
     ///     Injectable so tests need not wait out the real timeout.
+    ///   - reconnectDelays: the backoff gaps between automatic reconnect
+    ///     attempts after a drop. Injectable so tests need not wait them out.
     ///   - defaults: where the volume is remembered. Injectable so tests do
     ///     not read or write the level this machine is actually using.
+    ///   - workspaceNotifications: where `NSWorkspace.didWakeNotification`
+    ///     arrives. Injectable so tests can post a wake without sleeping the
+    ///     machine.
     ///   - makePlayer: builds the AVPlayer for a stream item. Injectable so a
     ///     test can exercise `play()` without opening the stream.
     init(loadingTimeout: Duration = .seconds(20),
+         reconnectDelays: [Duration] = PlayerController.defaultReconnectDelays,
          defaults: UserDefaults = .standard,
+         workspaceNotifications: NotificationCenter = NSWorkspace.shared.notificationCenter,
          makePlayer: @escaping (AVPlayerItem) -> AVPlayer = AVPlayer.init(playerItem:)) {
         self.loadingTimeout = loadingTimeout
+        self.reconnectDelays = reconnectDelays
         self.defaults = defaults
         self.makePlayer = makePlayer
         // Not `defaults.double(forKey:)`: that answers 0 for a key nobody has
         // written, so a fresh install would start silent and read as broken.
         self.volume = defaults.object(forKey: Self.volumeKey)
             .map { Self.clamp(($0 as? Double) ?? 1) } ?? 1
+
+        // The connection from before sleep is dead even when AVPlayer has not
+        // noticed yet, so don't wait for the stall to surface: rebuild at the
+        // live edge — which is where a listener wants to wake up anyway —
+        // through play(), so the reconnect budget is fresh too.
+        wakeObserver = workspaceNotifications
+            .publisher(for: NSWorkspace.didWakeNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self, self.state.isActive else { return }
+                self.play()
+            }
     }
 
     private static func clamp(_ value: Double) -> Double {
@@ -97,6 +151,17 @@ final class PlayerController: ObservableObject {
     }
 
     func play() {
+        wantsPlayback = true
+        hasPlayedSinceIntent = false
+        reconnectAttempt = 0
+        cancelReconnect()
+        open()
+    }
+
+    /// Builds a fresh player on the live edge. `play()` is the user's press
+    /// and resets the reconnect budget; a reconnect attempt re-enters here
+    /// without touching it.
+    private func open() {
         teardown()
         let asset = AVURLAsset(url: Self.streamURL,
                                options: [AVURLAssetHTTPUserAgentKey: BFFAPI.userAgent])
@@ -107,6 +172,7 @@ final class PlayerController: ObservableObject {
         // you press Stop then Play.
         player.volume = Float(volume)
         self.player = player
+        routePicker?.player = player
         transition(to: .loading)
 
         player.publisher(for: \.timeControlStatus)
@@ -163,6 +229,8 @@ final class PlayerController: ObservableObject {
     }
 
     func stop() {
+        wantsPlayback = false
+        cancelReconnect()
         teardown()
         transition(to: .stopped)
     }
@@ -176,7 +244,12 @@ final class PlayerController: ObservableObject {
             // Already armed means we re-entered .loading from a stall; keep the
             // original deadline instead of extending it on every notification.
             if watchdog == nil { startWatchdog() }
-        case .stopped, .playing, .failed:
+        case .playing:
+            hasPlayedSinceIntent = true
+            cancelWatchdog()
+        case .stopped, .reconnecting, .failed:
+            // .reconnecting needs no watchdog: the backoff gap is its own
+            // bounded timer, and the attempt it launches re-enters .loading.
             cancelWatchdog()
         }
     }
@@ -201,7 +274,25 @@ final class PlayerController: ObservableObject {
 
     private func fail(message: String) {
         teardown()
-        transition(to: .failed(message))
+        guard wantsPlayback, hasPlayedSinceIntent,
+              reconnectAttempt < reconnectDelays.count else {
+            wantsPlayback = false
+            transition(to: .failed(message))
+            return
+        }
+        let gap = reconnectDelays[reconnectAttempt]
+        reconnectAttempt += 1
+        transition(to: .reconnecting)
+        reconnectTask = Task { [weak self] in
+            try? await Task.sleep(for: gap)
+            guard !Task.isCancelled, let self, self.state == .reconnecting else { return }
+            self.open()
+        }
+    }
+
+    private func cancelReconnect() {
+        reconnectTask?.cancel()
+        reconnectTask = nil
     }
 
     private func teardown() {
@@ -209,5 +300,6 @@ final class PlayerController: ObservableObject {
         cancellables.removeAll()
         player?.pause()
         player = nil
+        routePicker?.player = nil
     }
 }

@@ -1,0 +1,183 @@
+import AppKit
+import AVFoundation
+import XCTest
+@testable import BFFCore
+
+/// Auto-reconnect after a drop. Like PlayerControllerTests, these drive the
+/// `transition(to:)` funnel with a fake player factory, so a "drop" is a stall
+/// (`.playing` → `.loading`) that the watchdog times out — the same path a
+/// dead Wi-Fi link takes — and no stream or network is involved.
+@MainActor
+final class ReconnectTests: XCTestCase {
+    private let stallTimeout = Duration.milliseconds(50)
+    private let timedOut = PlayerController.State.failed("Couldn’t reach the BFF.fm stream")
+
+    /// Long enough for the watchdog, a short reconnect gap, and the retry's
+    /// own watchdog to all have fired.
+    private func waitPastTimeout() async {
+        try? await Task.sleep(for: .milliseconds(750))
+    }
+
+    /// A controller whose `play()` builds a counted, itemless AVPlayer — the
+    /// count is how these tests see reconnect attempts happen.
+    private func makeController(reconnectDelays: [Duration],
+                                builds: Builds,
+                                workspaceNotifications: NotificationCenter = .init()) -> PlayerController {
+        PlayerController(loadingTimeout: stallTimeout,
+                         reconnectDelays: reconnectDelays,
+                         defaults: UserDefaults(suiteName: "reconnect-tests")!,
+                         workspaceNotifications: workspaceNotifications,
+                         makePlayer: { _ in
+                             builds.count += 1
+                             return AVPlayer()
+                         })
+    }
+
+    final class Builds { var count = 0 }
+
+    /// Playback reached `.playing`, then dropped: instead of the terminal
+    /// `.failed` the app used to show, the controller waits out a backoff gap.
+    func testDropWhilePlayingEntersReconnecting() async {
+        let builds = Builds()
+        let player = makeController(reconnectDelays: [.seconds(10)], builds: builds)
+        player.play()
+        player.transition(to: .playing)
+        player.transition(to: .loading)   // the stall notification's move
+        await waitPastTimeout()           // watchdog fires → the old dead end
+        XCTAssertEqual(player.state, .reconnecting)
+        player.stop()
+    }
+
+    func testReconnectAttemptRebuildsThePlayer() async {
+        let builds = Builds()
+        let player = makeController(reconnectDelays: [.milliseconds(10)], builds: builds)
+        player.play()
+        XCTAssertEqual(builds.count, 1)
+        player.transition(to: .playing)
+        player.transition(to: .loading)
+        await waitPastTimeout()
+        XCTAssertEqual(builds.count, 2)
+        player.stop()
+    }
+
+    /// The budget is the good-guest bound: when every gap has been used, the
+    /// controller settles into the same `.failed` it always showed, rather
+    /// than hammering the stream forever.
+    func testGivesUpIntoFailedWhenBudgetExhausted() async {
+        let builds = Builds()
+        let player = makeController(reconnectDelays: [.milliseconds(10)], builds: builds)
+        player.play()
+        player.transition(to: .playing)
+        player.transition(to: .loading)
+        await waitPastTimeout()
+        XCTAssertEqual(player.state, timedOut)
+        XCTAssertEqual(builds.count, 2)   // exactly one retry for one gap
+    }
+
+    /// Stop means stop: a press during the gap must not leave a timer behind
+    /// that restarts the stream after the user walked away.
+    func testStopDuringReconnectCancelsIt() async {
+        let builds = Builds()
+        let player = makeController(reconnectDelays: [.seconds(10)], builds: builds)
+        player.play()
+        player.transition(to: .playing)
+        player.transition(to: .loading)
+        await waitPastTimeout()
+        XCTAssertEqual(player.state, .reconnecting)
+        player.stop()
+        await waitPastTimeout()
+        XCTAssertEqual(player.state, .stopped)
+        XCTAssertEqual(builds.count, 1)
+    }
+
+    /// Reconnect recovers drops, not failed first connects: Play against a
+    /// down stream should still fail honestly within one watchdog, not spin
+    /// through the whole backoff schedule first.
+    func testFailedFirstConnectDoesNotReconnect() async {
+        let builds = Builds()
+        let player = makeController(reconnectDelays: [.milliseconds(10)], builds: builds)
+        player.play()
+        await waitPastTimeout()
+        XCTAssertEqual(player.state, timedOut)
+        XCTAssertEqual(builds.count, 1)
+    }
+
+    /// Each press of Play is a fresh incident with a fresh budget — a drop an
+    /// hour ago must not eat this hour's retries.
+    func testPlayGetsAFreshBudgetAfterAnEarlierDrop() async {
+        let builds = Builds()
+        let player = makeController(reconnectDelays: [.seconds(10)], builds: builds)
+        player.play()
+        player.transition(to: .playing)
+        player.transition(to: .loading)
+        await waitPastTimeout()
+        XCTAssertEqual(player.state, .reconnecting)   // budget's one gap in use
+        player.stop()
+
+        player.play()
+        player.transition(to: .playing)
+        player.transition(to: .loading)
+        await waitPastTimeout()
+        XCTAssertEqual(player.state, .reconnecting)
+        player.stop()
+    }
+
+    /// `toggle()` reads `isActive`; while reconnecting the button must act as
+    /// Stop, not Play.
+    func testReconnectingIsActive() {
+        XCTAssertTrue(PlayerController.State.reconnecting.isActive)
+    }
+
+    // MARK: - Wake from sleep
+
+    /// Waking never delivers a notification instantly — give the main-queue
+    /// hop time to happen, without waiting out a whole watchdog.
+    private func waitForNotificationDelivery() async {
+        try? await Task.sleep(for: .milliseconds(200))
+    }
+
+    /// The pre-sleep connection is dead even when AVPlayer has not noticed
+    /// yet, so a wake during playback rebuilds at the live edge instead of
+    /// waiting for the stall to surface.
+    func testWakeWhilePlayingRebuildsThePlayer() async {
+        let builds = Builds()
+        let wake = NotificationCenter()
+        let player = makeController(reconnectDelays: [.seconds(10)],
+                                    builds: builds, workspaceNotifications: wake)
+        player.play()
+        player.transition(to: .playing)
+        wake.post(name: NSWorkspace.didWakeNotification, object: nil)
+        await waitForNotificationDelivery()
+        XCTAssertEqual(builds.count, 2)
+        player.stop()
+    }
+
+    func testWakeWhileStoppedDoesNothing() async {
+        let builds = Builds()
+        let wake = NotificationCenter()
+        let player = makeController(reconnectDelays: [.seconds(10)],
+                                    builds: builds, workspaceNotifications: wake)
+        wake.post(name: NSWorkspace.didWakeNotification, object: nil)
+        await waitForNotificationDelivery()
+        XCTAssertEqual(builds.count, 0)
+        XCTAssertEqual(player.state, .stopped)
+    }
+
+    /// A wake mid-gap means the network story just changed; try now with a
+    /// fresh budget rather than sitting out the rest of the backoff.
+    func testWakeDuringReconnectRetriesAtOnce() async {
+        let builds = Builds()
+        let wake = NotificationCenter()
+        let player = makeController(reconnectDelays: [.seconds(10)],
+                                    builds: builds, workspaceNotifications: wake)
+        player.play()
+        player.transition(to: .playing)
+        player.transition(to: .loading)
+        await waitPastTimeout()
+        XCTAssertEqual(player.state, .reconnecting)
+        wake.post(name: NSWorkspace.didWakeNotification, object: nil)
+        await waitForNotificationDelivery()
+        XCTAssertEqual(builds.count, 2)
+        player.stop()
+    }
+}

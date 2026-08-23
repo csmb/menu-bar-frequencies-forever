@@ -193,6 +193,9 @@ struct MenuView: View {
             Slider(value: $player.volume, in: 0...1)
                 .controlSize(.small)
                 .accessibilityLabel("Stream volume")
+            RoutePickerView(player: player)
+                .frame(width: 24, height: 20)
+                .help("AirPlay")
         }
     }
 
@@ -226,12 +229,18 @@ struct MenuView: View {
         case .stopped, .failed:
             Label("Play", systemImage: "play.fill")
         case .loading:
-            HStack(spacing: 5) {
-                ProgressView().controlSize(.small)
-                Text("Connecting…")
-            }
+            spinnerLabel("Connecting…")
+        case .reconnecting:
+            spinnerLabel("Reconnecting…")
         case .playing:
             Label("Stop", systemImage: "stop.fill")
+        }
+    }
+
+    private func spinnerLabel(_ text: String) -> some View {
+        HStack(spacing: 5) {
+            ProgressView().controlSize(.small)
+            Text(text)
         }
     }
 
