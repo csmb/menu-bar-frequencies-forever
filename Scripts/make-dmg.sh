@@ -9,15 +9,22 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# The app and the disk image are both built outside the iCloud-backed repo so
+# codesign is not fighting iCloud re-adding com.apple.FinderInfo; see the
+# Makefile. Export it so the build-app.sh call below inherits the same value.
+BUILD_DIR="${BUILD_DIR:-$HOME/Library/Caches/menu-bar-frequencies-forever}"
+export BUILD_DIR
+mkdir -p "$BUILD_DIR"
+
 Scripts/build-app.sh
 
-APP="build/BFF.FM – Menu Bar Frequencies Forever.app"
+APP="$BUILD_DIR/BFF.FM – Menu Bar Frequencies Forever.app"
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
 # Versioned, so a friend can tell two downloads apart and a browser does not
 # quietly rename the second one to "… -2.dmg". Info.plist is the single source:
 # `make release VERSION=1.1` stamps it there and it reaches the filename, the
 # volume name, and the app's own About box from that one place.
-DMG="build/BFF.FM – Menu Bar Frequencies Forever $VERSION.dmg"
+DMG="$BUILD_DIR/BFF.FM – Menu Bar Frequencies Forever $VERSION.dmg"
 NOTARY_PROFILE="${NOTARY_PROFILE:-menu-bar-frequencies-forever}"
 
 # STAGE becomes the disk image root, so nothing may be written into it that is

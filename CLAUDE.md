@@ -19,15 +19,25 @@ SwiftPM only, no Xcode project. `BFFCore` holds everything; `BFFMenuBar` is a
 one-line executable calling `BFFMenuBarApp.main()`.
 
 ```sh
-make app      # build/BFF.FM – Menu Bar Frequencies Forever.app
+make app      # $BUILD_DIR/BFF.FM – Menu Bar Frequencies Forever.app
 make install  # copies it to /Applications
-make dmg      # drag-to-install disk image
+make dmg      # drag-to-install disk image, in $BUILD_DIR
 make test     # 75 tests
 ```
 
 Keep the build at **zero warnings** and the suite green. `Makefile` recipes
 need tab indentation. The app name contains spaces, so every path built from it
 stays quoted; `Makefile` keeps it in `APP`/`DEST` for exactly that reason.
+
+**Build output lives outside the repo, under `$BUILD_DIR`** (default
+`~/Library/Caches/menu-bar-frequencies-forever`, set in the `Makefile` and
+exported to the scripts). This repo is in iCloud Drive, whose file provider
+stamps `com.apple.FinderInfo` on the built `.app` and re-adds it within a second
+of any strip; codesign refuses to sign or `--strict`-verify a bundle carrying it
+("resource fork, Finder information, or similar detritus not allowed"), so the
+whole assemble/sign/notarize/staple path — and the DMG — must stay off iCloud.
+Signing in place was measured losing the race outright. Override with
+`make BUILD_DIR=/somewhere dmg`.
 
 **Never write `cmd | grep -q` in these scripts.** They run under `set -o
 pipefail`, where `grep -q` exits on its first match, the producer dies of

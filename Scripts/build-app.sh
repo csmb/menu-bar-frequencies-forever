@@ -5,7 +5,14 @@ cd "$(dirname "$0")/.."
 
 swift build -c release
 
-APP="build/BFF.FM – Menu Bar Frequencies Forever.app"
+# The bundle is assembled and signed outside the iCloud-backed repo: iCloud's
+# file provider keeps re-stamping com.apple.FinderInfo onto it, which codesign
+# refuses to sign over. See the Makefile for the full explanation. Same default
+# as the Makefile; an exported BUILD_DIR (from make, or an override) wins.
+BUILD_DIR="${BUILD_DIR:-$HOME/Library/Caches/menu-bar-frequencies-forever}"
+mkdir -p "$BUILD_DIR"
+
+APP="$BUILD_DIR/BFF.FM – Menu Bar Frequencies Forever.app"
 BIN=".build/release/BFFMenuBar"
 
 rm -rf "$APP"

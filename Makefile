@@ -1,7 +1,17 @@
 .PHONY: app dmg release install run test clean
 
+# Build output lives OUTSIDE the repo, because the repo is in iCloud Drive.
+# iCloud's file provider stamps com.apple.FinderInfo on the built .app bundle
+# and re-adds it within a second of any strip, and codesign refuses to sign or
+# --strict-verify a bundle carrying it ("resource fork, Finder information, or
+# similar detritus not allowed"). Assembling and signing under ~/Library/Caches
+# keeps the whole signing pipeline off iCloud. Override with
+# `make BUILD_DIR=/somewhere dmg`; the scripts read the same variable.
+BUILD_DIR ?= $(HOME)/Library/Caches/menu-bar-frequencies-forever
+export BUILD_DIR
+
 # The app name has spaces, so every use of these has to stay quoted.
-APP = build/BFF.FM – Menu Bar Frequencies Forever.app
+APP = $(BUILD_DIR)/BFF.FM – Menu Bar Frequencies Forever.app
 DEST = /Applications/BFF.FM – Menu Bar Frequencies Forever.app
 PLIST = Scripts/Info.plist
 
@@ -43,4 +53,4 @@ test:
 	swift test
 
 clean:
-	rm -rf .build build
+	rm -rf .build build "$(BUILD_DIR)"
