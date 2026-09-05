@@ -78,9 +78,10 @@ struct MenuView: View {
                 .foregroundStyle(.red)
         }
         if service.fetchFailed {
-            Text("Can’t reach BFF.fm — info may be stale.")
+            Text("Can’t reach BFF.fm’s info service — playback is fine, but track and show details may be out of date.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 

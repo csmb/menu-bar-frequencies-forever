@@ -104,6 +104,43 @@ final class NowPlayingServiceTests: XCTestCase {
         XCTAssertTrue(service.fetchFailed)
     }
 
+    // MARK: Exponential backoff
+
+    /// Each consecutive failure doubles the gap before the next poll, so a
+    /// struggling station is asked less often, never more.
+    func testBackoffDoublesOnConsecutiveFailures() async {
+        let service = makeService(ProviderBox(.failure(URLError(.timedOut))))
+        XCTAssertEqual(service.nextPollInterval, NowPlayingService.pollInterval,
+                       "starts at the normal cadence with no failures")
+        await service.fetch()
+        XCTAssertEqual(service.nextPollInterval, 60)
+        await service.fetch()
+        XCTAssertEqual(service.nextPollInterval, 120)
+        await service.fetch()
+        XCTAssertEqual(service.nextPollInterval, 240)
+    }
+
+    /// The gap grows toward a ceiling and holds there — it never gives up, but
+    /// it also never stretches past the cap.
+    func testBackoffHoldsAtMax() async {
+        let service = makeService(ProviderBox(.failure(URLError(.timedOut))))
+        for _ in 0..<10 { await service.fetch() }
+        XCTAssertEqual(service.nextPollInterval, NowPlayingService.maxPollInterval)
+    }
+
+    /// One success wipes the backoff, so recovery snaps straight back to the
+    /// normal 30s cadence instead of crawling back down.
+    func testSuccessResetsBackoff() async {
+        let box = ProviderBox(.failure(URLError(.timedOut)))
+        let service = makeService(box)
+        await service.fetch()
+        await service.fetch()
+        XCTAssertEqual(service.nextPollInterval, 120)
+        box.result = .success((payload, response(status: 200)))
+        await service.fetch()
+        XCTAssertEqual(service.nextPollInterval, NowPlayingService.pollInterval)
+    }
+
     // MARK: BFF.fm identification rules
 
     func testEndpointCarriesAppID() {
@@ -197,6 +234,31 @@ final class PollThrottleTests: XCTestCase {
 
         XCTAssertEqual(counter.requests, 1,
                        "a failing endpoint must not be hammered")
+    }
+
+    /// After a failure the grown backoff gap — not the base 30s — governs the
+    /// next attempt, so reopening the menu partway through it stays quiet even
+    /// once the base interval has passed.
+    func testBackoffGapThrottlesReopen() async {
+        let counter = Counter()
+        var seconds = 1_000.0
+        let service = NowPlayingService(
+            provider: { _ in
+                counter.requests += 1
+                throw URLError(.timedOut)
+            },
+            now: { Date(timeIntervalSince1970: seconds) })
+
+        service.setMenuOpen(true)   // attempt #1 fails → gap grows to 60s
+        service.setMenuOpen(false)
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        seconds += 40               // past the 30s base, still inside the 60s gap
+        service.setMenuOpen(true)
+        try? await Task.sleep(nanoseconds: 50_000_000)
+
+        XCTAssertEqual(counter.requests, 1,
+                       "a reopen inside the grown backoff gap must not refetch")
     }
 }
 

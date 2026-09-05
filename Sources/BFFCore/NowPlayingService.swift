@@ -9,6 +9,10 @@ typealias DataProvider = @Sendable (URL) async throws -> (Data, URLResponse)
 final class NowPlayingService: ObservableObject {
     nonisolated static let endpoint = BFFAPI.nowPlaying
     static let pollInterval: TimeInterval = 30
+    /// The ceiling the backoff climbs to and holds at. Eight minutes: a station
+    /// whose info API is down is asked roughly seven times an hour, never given
+    /// up on — so metadata catches up on its own once they recover.
+    static let maxPollInterval: TimeInterval = 480
 
     @Published private(set) var nowPlaying: NowPlaying?
     @Published private(set) var fetchFailed = false
@@ -21,8 +25,18 @@ final class NowPlayingService: ObservableObject {
     /// When we last *asked*, not when we last succeeded — a failing endpoint
     /// must not be retried faster than a working one.
     private var lastRequested: Date?
+    /// Consecutive failed fetches, reset by any success. Drives the backoff.
+    private var consecutiveFailures = 0
 
     var isPolling: Bool { timer != nil }
+
+    /// The gap to wait before the next poll: the base interval doubled once per
+    /// consecutive failure, capped at `maxPollInterval`. With no failures it is
+    /// exactly `pollInterval`, so a healthy app keeps its normal 30s cadence;
+    /// each failure only ever *lengthens* the gap, never shortens it below that.
+    var nextPollInterval: TimeInterval {
+        min(Self.pollInterval * pow(2, Double(consecutiveFailures)), Self.maxPollInterval)
+    }
 
     /// `now` is injectable so the throttle can be tested without waiting out
     /// a real 30 seconds.
@@ -68,8 +82,19 @@ final class NowPlayingService: ObservableObject {
             }
             nowPlaying = try JSONDecoder().decode(NowPlaying.self, from: data)
             fetchFailed = false
+            consecutiveFailures = 0
         } catch {
             fetchFailed = true
+            consecutiveFailures += 1
+        }
+        // Schedule the next poll from the outcome we just learned, so a failure
+        // lengthens the gap before the *next* attempt rather than a later one.
+        // Only while still polling — if the gate closed mid-fetch, stay quiet.
+        if isPlaying || menuOpen {
+            armTimer(after: nextPollInterval)
+        } else {
+            timer?.invalidate()
+            timer = nil
         }
     }
 
@@ -79,22 +104,42 @@ final class NowPlayingService: ObservableObject {
             // Opening the dropdown starts polling, and polling starts with a
             // fetch — so without this, every click on the menu bar icon was a
             // request. Idly opening and closing it a dozen times sent a dozen,
-            // against a documented rate of one per 30s. The timer still runs on
-            // schedule; only the eager first fetch is held back, which costs at
-            // most one interval of staleness on data we just asked for anyway.
-            if let last = lastRequested, now().timeIntervalSince(last) < Self.pollInterval {
+            // against a documented rate of one per 30s. The gate is
+            // `nextPollInterval`, not the base 30s, so during a backoff a
+            // reopen can't outpace it either; only the eager first fetch is
+            // held back, which costs at most one interval of staleness on data
+            // we just asked for anyway.
+            if let last = lastRequested, now().timeIntervalSince(last) < nextPollInterval {
                 // Too soon. The timer below will catch up.
             } else {
                 fetchNow()
             }
-            let timer = Timer(timeInterval: Self.pollInterval, repeats: true) { [weak self] _ in
-                Task { @MainActor in self?.fetchNow() }
-            }
-            RunLoop.main.add(timer, forMode: .common)
-            self.timer = timer
+            // Arm a timer synchronously even when the eager fetch fired: it
+            // guards the async gap so a burst of opens can't each start a poll,
+            // and a completed fetch re-arms it with the accurate next gap.
+            armTimer(after: nextPollInterval)
         } else if !shouldPoll {
             timer?.invalidate()
             timer = nil
         }
+    }
+
+    /// A one-shot timer, not a repeating one, because the gap between polls
+    /// varies with the backoff. `fetch()` re-arms it on each completion.
+    private func armTimer(after interval: TimeInterval) {
+        timer?.invalidate()
+        let timer = Timer(timeInterval: interval, repeats: false) { [weak self] _ in
+            Task { @MainActor in self?.timerFired() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
+    }
+
+    private func timerFired() {
+        guard isPlaying || menuOpen else {
+            timer = nil
+            return
+        }
+        fetchNow()
     }
 }
