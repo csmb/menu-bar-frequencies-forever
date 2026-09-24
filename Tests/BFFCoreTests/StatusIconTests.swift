@@ -39,11 +39,12 @@ final class StatusIconTests: XCTestCase {
         }
     }
 
-    /// Stopped shows the bars, so idle can't just be the bare rock.
+    /// Stopped shows the bars, so idle can't just be the bare rock. Read from
+    /// the columns right of the rock, where only the bars are drawn. This used
+    /// to compare the whole frame with a crop of it, which could never fail:
+    /// the two images differ in size, whatever is in them.
     func testIdleStillDrawsTheBars() throws {
-        let whole = try pixels(of: StatusIcon.idle)
-        let rockOnly = try rockRegion(of: StatusIcon.idle)
-        XCTAssertNotEqual(whole, rockOnly)
+        XCTAssertTrue(try hasInk(in: StatusIcon.idle, rightOf: StatusIcon.pointSize.width))
     }
 
     /// Idle is upright and at rest, so it is not any of the moving frames.
@@ -97,6 +98,20 @@ final class StatusIconTests: XCTestCase {
 
     private func pixels(of image: NSImage) throws -> Data {
         try XCTUnwrap(image.tiffRepresentation)
+    }
+
+    /// Whether anything is painted in the columns right of `x` points.
+    private func hasInk(in image: NSImage, rightOf x: CGFloat) throws -> Bool {
+        let rep = try XCTUnwrap(NSBitmapImageRep(data: try XCTUnwrap(image.tiffRepresentation)))
+        let scale = CGFloat(rep.pixelsWide) / image.size.width
+        for column in Int(x * scale)..<rep.pixelsWide {
+            for row in 0..<rep.pixelsHigh {
+                if let colour = rep.colorAt(x: column, y: row), colour.alphaComponent > 0.05 {
+                    return true
+                }
+            }
+        }
+        return false
     }
 
     /// The left `pointSize.width` of a frame, where the rock is drawn.

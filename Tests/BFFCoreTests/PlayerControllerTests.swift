@@ -21,7 +21,13 @@ final class PlayerControllerTests: XCTestCase {
         XCTAssertEqual(player.state, timedOut)
     }
 
-    func testReachingPlayingCancelsWatchdog() async {
+    /// The watchdog bounds connecting, not playback: reaching `.playing` before
+    /// it fires means it never fails the stream. These tests are named for the
+    /// outcome because the outcome is all they can see — the watchdog checks
+    /// the state before acting, so each passes with or without the cancel.
+    /// What cancelling on `.playing` buys is a fresh watchdog for the next
+    /// stall, and `testStallAfterPlayingIsStillBounded` fails without it.
+    func testAPlayingStreamIsNotFailedByTheWatchdog() async {
         let player = PlayerController(loadingTimeout: stallTimeout)
         player.transition(to: .loading)
         player.transition(to: .playing)
@@ -29,7 +35,9 @@ final class PlayerControllerTests: XCTestCase {
         XCTAssertEqual(player.state, .playing)
     }
 
-    func testStopCancelsWatchdog() async {
+    /// A Stop pressed while connecting stays a Stop: the watchdog's deadline
+    /// passing afterwards must not turn it into `.failed`.
+    func testTheWatchdogNeverOverridesAStop() async {
         let player = PlayerController(loadingTimeout: stallTimeout)
         player.transition(to: .loading)
         player.stop()
@@ -50,9 +58,9 @@ final class PlayerControllerTests: XCTestCase {
         XCTAssertEqual(player.state, timedOut)
     }
 
-    func testRecoveredStallDoesNotFireLater() async {
-        // playing → stall → playing: the recovery must disarm the watchdog the
-        // stall armed, not just the one play() armed.
+    func testARecoveredStallIsNotFailedLater() async {
+        // playing → stall → playing: once the stall recovers, the watchdog it
+        // armed must not fail the stream when its deadline comes.
         let player = PlayerController(loadingTimeout: stallTimeout)
         player.transition(to: .loading)
         player.transition(to: .playing)

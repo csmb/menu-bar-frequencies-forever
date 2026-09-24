@@ -121,18 +121,21 @@ final class ReconnectTests: XCTestCase {
         XCTAssertEqual(builds.count, 2)   // exactly one retry for one gap
     }
 
-    /// Stop means stop: a press during the gap must not leave a timer behind
-    /// that restarts the stream after the user walked away.
-    func testStopDuringReconnectCancelsIt() async {
+    /// Stop means stop: a press during the backoff gap must not be followed by
+    /// a retry that restarts the stream after the user walked away. The gap is
+    /// short enough to run out well inside the wait, so a retry that survived
+    /// Stop would show as a second build. With the ten-second gap this test
+    /// once used, nothing could have fired in time to be seen.
+    func testNoRetryFollowsAStopDuringTheGap() async {
         let builds = Builds()
-        let player = makeController(reconnectDelays: [.seconds(10)], builds: builds)
+        let player = makeController(reconnectDelays: [.milliseconds(100)], builds: builds)
         player.play()
         player.transition(to: .playing)
         player.transition(to: .loading)
-        await waitPastTimeout()
-        XCTAssertEqual(player.state, .reconnecting)
-        player.stop()
-        await waitPastTimeout()
+        let reconnecting = await waitUntil { player.state == .reconnecting }
+        XCTAssertTrue(reconnecting)
+        player.stop()                                   // inside the 100ms gap
+        try? await Task.sleep(for: .milliseconds(500))  // long past it
         XCTAssertEqual(player.state, .stopped)
         XCTAssertEqual(builds.count, 1)
     }

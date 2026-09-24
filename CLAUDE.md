@@ -233,6 +233,17 @@ reads as a stall, so a reconnect test reached `.reconnecting` on the watchdog
 alone, with or without the code it was named for. `ReconnectTests` hands the
 controller an `InertPlayer` whose `play()` does nothing.
 
+Five more could not fail for the reason in their names. The idle-icon test
+compared a frame with a crop of itself — different sizes, never equal, whatever
+was drawn — and now reads the bars' own pixels. The stop-during-the-gap test
+used a ten-second gap, so no leftover retry could have fired in time to be
+seen. And a test cannot see a cancel that a guard makes redundant: the watchdog
+and the retry both check the state before acting, so the watchdog "cancels"
+tests passed with the cancels deleted. Those are named for the outcome they can
+see now. Where a cancel does change behaviour — a fresh watchdog for the next
+stall — `testStallAfterPlayingIsStillBounded` fails without it. **Plant the bug
+a test is named for and watch it fail before trusting the name.**
+
 ## SwiftUI/AppKit gotchas already paid for
 
 - `.frame(maxWidth: .infinity)` on a `Button` widens the *frame*; the control
