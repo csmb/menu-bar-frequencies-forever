@@ -25,7 +25,18 @@ VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/
 # `make release VERSION=1.1` stamps it there and it reaches the filename, the
 # volume name, and the app's own About box from that one place.
 DMG="$BUILD_DIR/BFF.FM – Menu Bar Frequencies Forever $VERSION.dmg"
+VOLUME="BFF.FM – Menu Bar Frequencies Forever $VERSION"
 NOTARY_PROFILE="${NOTARY_PROFILE:-menu-bar-frequencies-forever}"
+
+# Finder is told which disk to lay out by its name, and a volume that already
+# has the name — the last image of this version, still mounted after checking
+# it — wins: this image mounts as "<name> 1", the layout lands on the other
+# disk, and the build fails after notarization blaming Finder's write race.
+# Refuse here, before the slow part.
+if [ -e "/Volumes/$VOLUME" ]; then
+    echo "error: \"/Volumes/$VOLUME\" is already mounted; eject it and run this again." >&2
+    exit 1
+fi
 
 # STAGE becomes the disk image root, so nothing may be written into it that is
 # not meant to ship. The notarization zip goes in WORK instead — putting it in
@@ -124,8 +135,6 @@ if [ -n "$UNEXPECTED" ]; then
     exit 1
 fi
 
-VOLUME="BFF.FM – Menu Bar Frequencies Forever $VERSION"
-
 # Window position, icon placement and the backdrop are all stored in the
 # image's .DS_Store, and only Finder writes that file. So: build a writable
 # image, open it, let Finder record the layout, then compress the result. The
@@ -155,6 +164,13 @@ hdiutil create \
 MOUNT="$(hdiutil attach "$WORK/rw.dmg" -readwrite -noverify -noautoopen \
     | grep -o '/Volumes/.*$' | tail -1)"
 trap 'hdiutil detach "$MOUNT" -quiet -force 2>/dev/null || true; rm -rf "$STAGE" "$WORK"' EXIT
+
+# The same clash, arrived since the check above: say so, rather than let
+# Finder style the other disk.
+if [ "$MOUNT" != "/Volumes/$VOLUME" ]; then
+    echo "error: the image mounted at \"$MOUNT\" — another volume took \"$VOLUME\"." >&2
+    exit 1
+fi
 
 osascript <<APPLESCRIPT
 tell application "Finder"

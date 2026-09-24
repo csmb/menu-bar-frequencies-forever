@@ -402,6 +402,14 @@ contains `backgroundImageAlias`, because the file appears the moment Finder
 touches the window, before the backdrop is recorded. Never judge a disk image
 by its exit code; mount it.
 
+**A mounted volume with the image's name makes Finder style the wrong disk.**
+The AppleScript names the disk, so with the last image of this version still
+mounted — say, after mounting it to check — the new one attaches as
+`<name> 1`, the layout goes to the old one, and the build fails after
+notarization with the `.DS_Store` error above. `make-dmg.sh` refuses at the
+start when `/Volumes/<name>` exists, and checks the mount point again after
+attaching, because notarization leaves minutes in which to mount something.
+
 `Scripts/app-icon.swift` recentres the artwork before `iconutil`, because the
 rock sits about 100px nearer the top of its own artboard than the bottom and
 macOS 26 composites app icons onto a tile where that shows. Measure it against
