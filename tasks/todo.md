@@ -1,3 +1,55 @@
+# Small fixes, round 3 (2026-09-24)
+
+From the "what's left" list: items 1–4, 6 and 9. One commit each; code changes
+test-first, script changes run against controlled inputs in a scratch clone.
+
+## Todo
+
+- [x] 1. `make test` builds under `$BUILD_DIR`, off iCloud, and `make clean`
+      removes it (779b29f)
+- [x] 2. Launch at Login is re-read from the system on every open of the
+      dropdown, not once per app life (31af542)
+- [x] 3. The info note tells "you're offline" from "their info service is
+      down", and only a playing stream is called fine (59f62c0)
+- [x] 4. `make-dmg.sh` refuses up front when a volume of the same name is
+      mounted, instead of failing after notarization (be53d08)
+- [x] 6. Show names with commas or semicolons link: iCalendar TEXT escapes are
+      undone (ef1c0d4)
+- [x] 9. The vacuous tests — five, counting the three watchdog ones: prove by
+      mutation they cannot fail for their stated reason, then make them able
+      to, or name them for what they check (f768ce7)
+- [x] Full suite from a clean export of HEAD, zero warnings
+
+## Review
+
+1. `make test` failed in the repo with "detritus not allowed". It now passes
+   there.
+2. Launch at Login. Both tests failed first, against a model that trusted the
+   request and was never refreshed. SMAppService sits behind a one-protocol
+   seam, so no test registers the runner. `AppModel` takes optional parts,
+   because in Swift 5 mode default arguments are evaluated off the main actor.
+3. Info note. The tests pin which note shows, not its words, and failed
+   against a stub doing what the old code did. The one guard that passed
+   there (a playing stream outranks "offline") failed once the reversed check
+   was planted.
+4. Disk image. In a scratch clone with a same-named volume mounted
+   `-nobrowse`, the old script went on to image building and the new one
+   refuses up front. Two same-named images confirmed the second mounts as
+   "<name> 1", which the post-attach check catches.
+6. Show names. The test failed first. The live schedule (one request) has 91
+   entries and no backslash in any show name, so nothing current changes.
+   The feed does escape commas elsewhere.
+9. Tests. Planting the named bug left all five passing before the change.
+   After it, each fails when its named guarantee breaks: no bars, a retry
+   that really fires, a watchdog that fails a playing, stopped or recovered
+   stream.
+
+Side note: macOS 27's `hdiutil` warns that `attach -nobrowse` is deprecated in
+favour of `diskutil image attach`; `make-dmg.sh`'s `hdiutil attach` may have to
+move eventually.
+
+---
+
 # User-Agent follows the app's version (2026-09-24)
 
 The User-Agent's version is read at runtime from the app bundle's Info.plist
