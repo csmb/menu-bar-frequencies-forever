@@ -111,7 +111,11 @@ connection attempts.** The backoff runs 2→32s and then settles into `.failed`
 rather than retrying forever; reconnect arms only after playback actually
 started, so Play against a down stream still fails within one watchdog. Wake
 from sleep restarts with a fresh budget because the network story genuinely
-changed. Don't "improve" any of this into an unbounded retry loop.
+changed — but it is not a press of Play. Whether playback had started survives
+the sleep, so the rebuild right after a wake, which is the one most likely to
+fail while Wi-Fi rejoins, backs off instead of giving up. Routing wake through
+`play()` once cleared that and made the first post-wake failure final. Don't
+"improve" any of this into an unbounded retry loop.
 
 `MusicLinks.slug` is safe by construction — it splits on
 `CharacterSet.alphanumerics.inverted` and joins what survives, so a slug is

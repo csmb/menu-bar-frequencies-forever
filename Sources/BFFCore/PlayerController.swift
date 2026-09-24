@@ -118,14 +118,13 @@ final class PlayerController: ObservableObject {
 
         // The connection from before sleep is dead even when AVPlayer has not
         // noticed yet, so don't wait for the stall to surface: rebuild at the
-        // live edge — which is where a listener wants to wake up anyway —
-        // through play(), so the reconnect budget is fresh too.
+        // live edge — which is where a listener wants to wake up anyway.
         wakeObserver = workspaceNotifications
             .publisher(for: NSWorkspace.didWakeNotification)
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 guard let self, self.state.isActive else { return }
-                self.play()
+                self.rebuildAfterWake()
             }
     }
 
@@ -140,6 +139,17 @@ final class PlayerController: ObservableObject {
     func play() {
         wantsPlayback = true
         hasPlayedSinceIntent = false
+        reconnectAttempt = 0
+        cancelReconnect()
+        open()
+    }
+
+    /// Waking is not a new press of Play: the listener's intent, and whether
+    /// playback had actually started, both outlive the sleep. Only the budget
+    /// is fresh, because the network story changed. Routed through `play()`,
+    /// the rebuild right after a wake — the connection most likely to fail
+    /// while Wi-Fi rejoins — lost its reconnect and failed for good.
+    private func rebuildAfterWake() {
         reconnectAttempt = 0
         cancelReconnect()
         open()

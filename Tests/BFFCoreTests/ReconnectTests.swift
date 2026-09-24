@@ -211,4 +211,36 @@ final class ReconnectTests: XCTestCase {
         XCTAssertEqual(builds.count, 2)
         player.stop()
     }
+
+    /// Waking is not a new press of Play. Wi-Fi is often still rejoining when
+    /// the notification lands, so the rebuild it triggers is the connection
+    /// most likely to fail — the case the backoff exists for, not a dead end.
+    func testFailedConnectAfterWakeStillReconnects() async {
+        let builds = Builds()
+        let wake = NotificationCenter()
+        let player = makeController(reconnectDelays: [.seconds(10)],
+                                    builds: builds, workspaceNotifications: wake)
+        player.play()
+        player.transition(to: .playing)
+        wake.post(name: NSWorkspace.didWakeNotification, object: nil)
+        await waitPastTimeout()           // the post-wake connect times out
+        XCTAssertEqual(builds.count, 2)
+        XCTAssertEqual(player.state, .reconnecting)
+        player.stop()
+    }
+
+    /// But a wake does not invent a drop: if the stream never started before
+    /// the sleep, the rebuild is still a first connect, and a first connect
+    /// that fails says so rather than working through the backoff.
+    func testWakeDuringFirstConnectStillFailsHonestly() async {
+        let builds = Builds()
+        let wake = NotificationCenter()
+        let player = makeController(reconnectDelays: [.milliseconds(10)],
+                                    builds: builds, workspaceNotifications: wake)
+        player.play()                     // still connecting when the lid closes
+        wake.post(name: NSWorkspace.didWakeNotification, object: nil)
+        await waitPastTimeout()
+        XCTAssertEqual(builds.count, 2)
+        XCTAssertEqual(player.state, timedOut)
+    }
 }
