@@ -14,7 +14,9 @@ import Foundation
 enum BFFAPI {
     /// Reverse URI form, matching the app's bundle identifier.
     static let appID = "com.bunting.menu-bar-frequencies-forever"
-    static let userAgent = "menu-bar-frequencies-forever/1.0"
+    /// Versioned on its own, not with the app, and bumped by hand. 1.1 is the
+    /// first to identify artwork requests too.
+    static let userAgent = "menu-bar-frequencies-forever/1.1"
 
     /// Show and track metadata for whatever is on air right now.
     static let nowPlaying = identified(URL(string: "https://data.bff.fm/api/data/onair/now.json")!)
