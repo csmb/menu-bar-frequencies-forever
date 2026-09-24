@@ -27,7 +27,8 @@ make test     # 75 tests
 
 Keep the build at **zero warnings** and the suite green. `Makefile` recipes
 need tab indentation. The app name contains spaces, so every path built from it
-stays quoted; `Makefile` keeps it in `APP`/`DEST` for exactly that reason.
+stays quoted; `Makefile` keeps it in `NAME`/`APP`/`DEST` for exactly that
+reason.
 
 **Build output lives outside the repo, under `$BUILD_DIR`** (default
 `~/Library/Caches/menu-bar-frequencies-forever`, set in the `Makefile` and
@@ -37,7 +38,10 @@ of any strip; codesign refuses to sign or `--strict`-verify a bundle carrying it
 ("resource fork, Finder information, or similar detritus not allowed"), so the
 whole assemble/sign/notarize/staple path — and the DMG — must stay off iCloud.
 Signing in place was measured losing the race outright. Override with
-`make BUILD_DIR=/somewhere dmg`.
+`make BUILD_DIR=/somewhere dmg`. Only a command-line override counts: a
+`BUILD_DIR` exported in the shell is ignored on purpose, an empty one is
+refused, and `make clean` removes only the `.app` and `.dmg`s this project
+writes there. It used to `rm -rf` the whole directory, whatever that was.
 
 **Never write `cmd | grep -q` in these scripts.** They run under `set -o
 pipefail`, where `grep -q` exits on its first match, the producer dies of

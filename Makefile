@@ -7,12 +7,22 @@
 # similar detritus not allowed"). Assembling and signing under ~/Library/Caches
 # keeps the whole signing pipeline off iCloud. Override with
 # `make BUILD_DIR=/somewhere dmg`; the scripts read the same variable.
-BUILD_DIR ?= $(HOME)/Library/Caches/menu-bar-frequencies-forever
+#
+# `=`, not `?=`: a BUILD_DIR exported in your shell for some other tool is
+# ignored, because `make clean` would otherwise go after that tool's output.
+# Only a command-line override counts, and an empty one is refused — the
+# scripts fall back to the default on empty while APP here would not, so
+# `make install` deleted the installed app and then had nothing to copy.
+BUILD_DIR = $(HOME)/Library/Caches/menu-bar-frequencies-forever
+ifeq ($(strip $(BUILD_DIR)),)
+$(error BUILD_DIR is empty — leave it unset for the default, or name a directory)
+endif
 export BUILD_DIR
 
 # The app name has spaces, so every use of these has to stay quoted.
-APP = $(BUILD_DIR)/BFF.FM – Menu Bar Frequencies Forever.app
-DEST = /Applications/BFF.FM – Menu Bar Frequencies Forever.app
+NAME = BFF.FM – Menu Bar Frequencies Forever
+APP = $(BUILD_DIR)/$(NAME).app
+DEST = /Applications/$(NAME).app
 PLIST = Scripts/Info.plist
 
 app:
@@ -42,6 +52,7 @@ release:
 	$(MAKE) dmg
 
 install: app
+	test -d "$(APP)"
 	rm -rf "$(DEST)"
 	cp -R "$(APP)" /Applications/
 	@echo "Installed $(DEST)"
@@ -52,5 +63,10 @@ run: app
 test:
 	swift test
 
+# Only what this project writes into BUILD_DIR — it may be a directory you
+# pointed it at, and anything else in there is yours. The directory itself
+# goes only if that leaves it empty.
 clean:
-	rm -rf .build build "$(BUILD_DIR)"
+	rm -rf .build build "$(APP)"
+	rm -f "$(BUILD_DIR)/$(NAME) "*.dmg
+	rmdir "$(BUILD_DIR)" 2>/dev/null || true
