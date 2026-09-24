@@ -159,7 +159,9 @@ unknown `/people/<slug>` with **HTTP 200** and its generic page — a derived
 link looks like it worked and goes somewhere wrong. `Space Abuela` is
 `/people/erikadelgato`; `Donna Arkee` is `/people/donna`, while
 `/people/donnaarkee` is the decoy. `ShowDirectory` reads the show's page and
-matches the presenter by name instead.
+matches the presenter by name instead — by the name as it reads, after the
+page's character references are decoded. bff.fm writes every apostrophe as
+`&#039;`; decoding only `&#39;` left each DJ with one in their name unlinked.
 
 Soft-404 signature when checking any bff.fm URL: ~4.3KB and a
 `Dead Air - Best Frequencies Forever` title. A real page is 40KB+ and titled

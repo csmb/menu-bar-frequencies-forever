@@ -112,7 +112,23 @@ final class PresenterLookupTests: XCTestCase {
     func testFindsEveryPersonLinkByTheNameItIsShownUnder() {
         let links = ShowDirectory.peopleLinks(in: showPage)
         XCTAssertEqual(links["donna arkee"]?.absoluteString, "https://bff.fm/people/donna")
+        XCTAssertEqual(links["space abuela"]?.absoluteString, "https://bff.fm/people/erikadelgato")
         XCTAssertEqual(links["@indierockgirl"]?.absoluteString, "https://bff.fm/people/theocmd")
+    }
+
+    /// bff.fm escapes every apostrophe as `&#039;` — 47 of 47 in the show
+    /// pages the app had cached — and a name read with the escape still in it
+    /// never matches now.json's plain presenter string, so any DJ with an
+    /// apostrophe in their name went unlinked.
+    func testLinkTextIsDecodedTheWayTheSiteEncodesIt() {
+        let links = ShowDirectory.peopleLinks(in: """
+            <a href="/people/sam">Sam O&#039;Connell</a>
+            <a href="/people/jo">Jo &#x2665; Soul</a>
+            <a href="/people/rnb">R&amp;B Hour</a>
+            """)
+        XCTAssertEqual(links["sam o'connell"]?.absoluteString, "https://bff.fm/people/sam")
+        XCTAssertEqual(links["jo ♥ soul"]?.absoluteString, "https://bff.fm/people/jo")
+        XCTAssertEqual(links["r&b hour"]?.absoluteString, "https://bff.fm/people/rnb")
     }
 
     func testBrowseAndFollowAreNotPeople() {

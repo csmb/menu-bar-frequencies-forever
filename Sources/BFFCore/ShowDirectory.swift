@@ -137,13 +137,36 @@ final class ShowDirectory: ObservableObject {
     }
 
     private static func stripTags(_ html: String) -> String {
-        html.replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
-            .replacingOccurrences(of: "&amp;", with: "&")
-            .replacingOccurrences(of: "&#39;", with: "'")
-            .replacingOccurrences(of: "&quot;", with: "\"")
+        decodeEntities(html.replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression))
             .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
+
+    /// Character references, decoded in a single pass. bff.fm writes every
+    /// apostrophe as `&#039;`, so numeric references are handled in general
+    /// rather than one spelling at a time — decoding `&#39;` alone left every
+    /// DJ with an apostrophe in their name unlinked. `&amp;` goes in the same
+    /// pass, so an escaped reference is never decoded twice.
+    private static func decodeEntities(_ text: String) -> String {
+        text.replacing(#/&(#[0-9]{1,7}|#[xX][0-9a-fA-F]{1,6}|[a-zA-Z]{2,4});/#) { match in
+            let reference = match.output.1
+            let scalar: Unicode.Scalar?
+            if reference.hasPrefix("#x") || reference.hasPrefix("#X") {
+                scalar = UInt32(reference.dropFirst(2), radix: 16).flatMap { Unicode.Scalar($0) }
+            } else if reference.hasPrefix("#") {
+                scalar = UInt32(reference.dropFirst()).flatMap { Unicode.Scalar($0) }
+            } else {
+                scalar = namedEntities[String(reference)]
+            }
+            return scalar.map { String(Character($0)) } ?? String(match.output.0)
+        }
+    }
+
+    /// The named references that turn up in link text. Anything else is left
+    /// exactly as written.
+    private static let namedEntities: [String: Unicode.Scalar] = [
+        "amp": "&", "lt": "<", "gt": ">", "quot": "\"", "apos": "'", "nbsp": " ",
+    ]
 
     /// Pulls SUMMARY/URL pairs out of the iCalendar feed.
     static func parse(_ ics: String) -> [String: URL] {
