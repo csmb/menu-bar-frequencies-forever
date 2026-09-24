@@ -193,7 +193,11 @@ drop `the`/`a`/`and`, run the words together. `The Color of Rain` →
 
 **Show slugs are not.** The schedule feed pairs `Weird Al Jazeera` with
 `/shows/a-hairy-home-companion` and `Bitch Talk Podcast` with
-`/shows/bitch-talk`. `ShowDirectory` reads `all.ics` once per launch.
+`/shows/bitch-talk`. `ShowDirectory` reads `all.ics` once per launch. Show
+names go through iCalendar's TEXT unescaping (`\,` `\;` `\\` `\n`): the feed's
+generator escapes commas — its own header reads `Best Frequencies\, Inc` — so
+a show named with a comma or semicolon arrives escaped, and until 2026-09
+never matched now.json's plain name. No current show has one.
 
 **DJ slugs are not, and guessing them fails silently.** bff.fm answers an
 unknown `/people/<slug>` with **HTTP 200** and its generic page — a derived

@@ -178,7 +178,7 @@ final class ShowDirectory: ObservableObject {
                 summary = nil
             } else if let value = value(of: "SUMMARY", in: line) {
                 // Every entry is titled "<Show> on BFF.FM".
-                summary = value.replacingOccurrences(
+                summary = unescaped(value).replacingOccurrences(
                     of: #"\s+on\s+BFF\.FM$"#,
                     with: "",
                     options: [.regularExpression, .caseInsensitive]
@@ -199,6 +199,9 @@ final class ShowDirectory: ObservableObject {
     /// space, so a SUMMARY can arrive split across several lines. A
     /// continuation with nothing before it — a body that opens with a space —
     /// is kept as a line of its own; there is nothing to join it to.
+    ///
+    /// Unfolding comes first, so an escape split across two lines is whole
+    /// again before `unescaped(_:)` reads it.
     private static func unfolded(_ ics: String) -> [String] {
         var lines: [String] = []
         for raw in ics.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n") {
@@ -209,6 +212,26 @@ final class ShowDirectory: ObservableObject {
             }
         }
         return lines
+    }
+
+    /// iCalendar's TEXT escapes (RFC 5545 §3.3.11) — `\,` `\;` `\\` and `\n` —
+    /// undone in one pass, left to right, so an escaped backslash is never
+    /// taken for the start of another escape. Left in, a show with a comma or
+    /// semicolon in its name never matched now.json's plain program name.
+    private static func unescaped(_ text: String) -> String {
+        var result = ""
+        var escaping = false
+        for character in text {
+            if escaping {
+                result.append(character == "n" || character == "N" ? "\n" : character)
+                escaping = false
+            } else if character == "\\" {
+                escaping = true
+            } else {
+                result.append(character)
+            }
+        }
+        return escaping ? result + "\\" : result
     }
 
     /// Property lines look like `SUMMARY;CHARSET=utf-8:Bitch Talk Podcast…`.

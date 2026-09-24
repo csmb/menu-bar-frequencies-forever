@@ -64,6 +64,29 @@ final class ShowDirectoryTests: XCTestCase {
         )
     }
 
+    /// iCalendar escapes commas, semicolons and backslashes in text (RFC 5545
+    /// §3.3.11), so a show with one in its name arrived as
+    /// `Rock\, Paper\; Scissors` and never matched now.json's plain program
+    /// name — no link. The escaped backslash is there to catch a
+    /// replace-one-escape-at-a-time decoding, which misreads `\\,`.
+    func testShowNamesWithCommasAndSemicolonsResolve() async {
+        let directory = directory(returning: """
+        BEGIN:VEVENT
+        SUMMARY:Rock\\, Paper\\; Scissors on BFF.FM
+        URL:https://bff.fm/shows/rps
+        END:VEVENT
+        BEGIN:VEVENT
+        SUMMARY:AC\\\\DC\\, Live on BFF.FM
+        URL:https://bff.fm/shows/acdc
+        END:VEVENT
+        """)
+        await directory.load()
+        XCTAssertEqual(directory.url(forShow: "Rock, Paper; Scissors")?.absoluteString,
+                       "https://bff.fm/shows/rps")
+        XCTAssertEqual(directory.url(forShow: #"AC\DC, Live"#)?.absoluteString,
+                       "https://bff.fm/shows/acdc")
+    }
+
     /// A body that opens with a space or tab starts with a continuation line
     /// and nothing to continue. That indexed an empty array and crashed every
     /// copy of the app on its first dropdown open; the rest of the feed must
