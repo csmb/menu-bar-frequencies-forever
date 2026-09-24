@@ -1,5 +1,4 @@
 import AppKit
-import ServiceManagement
 import SwiftUI
 
 struct MenuView: View {
@@ -7,8 +6,7 @@ struct MenuView: View {
     @ObservedObject var service: NowPlayingService
     @ObservedObject var shows: ShowDirectory
     @ObservedObject var navigation: MenuNavigation
-
-    @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
+    @ObservedObject var loginItem: LoginItem
 
     /// #efefef in light, #252525bf in dark — the dark one is translucent, so
     /// the panel keeps a little of the vibrancy behind it.
@@ -281,17 +279,16 @@ struct MenuView: View {
     }
 
     /// Still a real toggle — `.button` style just gives it the same footprint
-    /// as Quit, and highlights itself while it's on.
+    /// as Quit, and highlights itself while it's on. What it shows is the
+    /// system's setting, via `LoginItem`, read again on every open.
     private var launchAtLoginButton: some View {
-        Toggle(isOn: $launchAtLogin) {
+        Toggle(isOn: Binding(get: { loginItem.isEnabled },
+                             set: { loginItem.setEnabled($0) })) {
             Text("Launch at Login").modifier(PanelButtonLabel())
         }
         .toggleStyle(.button)
         .controlSize(.large)
         .buttonBorderShape(.roundedRectangle(radius: 5))
-        .onChange(of: launchAtLogin) { _, enabled in
-            setLaunchAtLogin(enabled)
-        }
     }
 
     private var quitButton: some View {
@@ -332,19 +329,6 @@ struct MenuView: View {
     private struct PanelButtonLabel: ViewModifier {
         func body(content: Content) -> some View {
             content.frame(maxWidth: .infinity, minHeight: 24)
-        }
-    }
-
-    private func setLaunchAtLogin(_ enabled: Bool) {
-        do {
-            if enabled {
-                try SMAppService.mainApp.register()
-            } else {
-                try SMAppService.mainApp.unregister()
-            }
-        } catch {
-            // Revert the toggle to what the system actually has.
-            launchAtLogin = SMAppService.mainApp.status == .enabled
         }
     }
 }

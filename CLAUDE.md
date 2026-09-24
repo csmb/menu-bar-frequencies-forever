@@ -80,6 +80,9 @@ button — which also removed ~100 lines of hand-centring.
 `onAppear` fires *once, ever*. Anything that must happen on each open belongs
 in `AppModel.dropdownWillOpen()`, called from `popoverWillShow`. A `@State`
 page here silently stopped resetting and the dropdown reopened into settings.
+The Launch at Login toggle fell into the same trap: read once when the view
+was built, it went on showing on after the setting was turned off in System
+Settings. `LoginItem` now holds it and is refreshed on every open.
 
 ## BFF.fm's APIs
 

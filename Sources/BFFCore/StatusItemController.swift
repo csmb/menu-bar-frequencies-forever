@@ -77,7 +77,8 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
             rootView: MenuView(player: model.player,
                                service: model.service,
                                shows: model.shows,
-                               navigation: model.navigation)
+                               navigation: model.navigation,
+                               loginItem: model.loginItem)
         )
         host.sizingOptions = .preferredContentSize
         popover.contentViewController = host

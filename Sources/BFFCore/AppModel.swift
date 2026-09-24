@@ -25,20 +25,32 @@ final class MenuNavigation: ObservableObject {
 /// poll gate.
 @MainActor
 final class AppModel: ObservableObject {
-    let player = PlayerController()
-    let service = NowPlayingService()
-    let shows = ShowDirectory()
+    let player: PlayerController
+    let service: NowPlayingService
+    let shows: ShowDirectory
+    let loginItem: LoginItem
     let navigation = MenuNavigation()
 
     @Published private(set) var playbackActive = false
 
     private var cancellables: Set<AnyCancellable> = []
 
-    init() {
+    /// Injectable so a test can open the dropdown without the network and
+    /// without touching this Mac's real login items. Optionals rather than
+    /// default arguments: in Swift 5 mode a default argument is evaluated off
+    /// the main actor, where none of these can be made.
+    init(player: PlayerController? = nil,
+         service: NowPlayingService? = nil,
+         shows: ShowDirectory? = nil,
+         loginItem: LoginItem? = nil) {
+        self.player = player ?? PlayerController()
+        self.service = service ?? NowPlayingService()
+        self.shows = shows ?? ShowDirectory()
+        self.loginItem = loginItem ?? LoginItem()
         // Menu bar only — no Dock icon, even when run outside a bundle.
         NSApplication.shared.setActivationPolicy(.accessory)
 
-        player.$state
+        self.player.$state
             .map(\.isActive)
             .removeDuplicates()
             .sink { [weak self] active in
@@ -52,6 +64,7 @@ final class AppModel: ObservableObject {
     /// the popover rather than by the view, because the view only appears once.
     func dropdownWillOpen() {
         navigation.reset()
+        loginItem.refresh()
         service.setMenuOpen(true)
         shows.loadIfNeeded()
         resolvePresenter()
