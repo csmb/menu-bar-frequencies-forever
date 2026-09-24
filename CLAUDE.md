@@ -109,13 +109,17 @@ more than it must. Two rules hold this up, and both have been broken once:
 A third rule joined them with auto-reconnect: **a drop costs at most six
 connection attempts.** The backoff runs 2→32s and then settles into `.failed`
 rather than retrying forever; reconnect arms only after playback actually
-started, so Play against a down stream still fails within one watchdog. Wake
-from sleep restarts with a fresh budget because the network story genuinely
-changed — but it is not a press of Play. Whether playback had started survives
-the sleep, so the rebuild right after a wake, which is the one most likely to
-fail while Wi-Fi rejoins, backs off instead of giving up. Routing wake through
-`play()` once cleared that and made the first post-wake failure final. Don't
-"improve" any of this into an unbounded retry loop.
+started, so Play against a down stream still fails within one watchdog. The
+budget is per drop, not per press of Play: once playback has held for a minute
+(`steadyAfter`) the incident is over and the next drop gets its own retries.
+It is never reset on reaching `.playing` alone, which would let a stream that
+connects and drops straight away cycle forever. Wake from sleep restarts with
+a fresh budget because the network story genuinely changed — but it is not a
+press of Play. Whether playback had started survives the sleep, so the rebuild
+right after a wake, which is the one most likely to fail while Wi-Fi rejoins,
+backs off instead of giving up. Routing wake through `play()` once cleared that
+and made the first post-wake failure final. Don't "improve" any of this into an
+unbounded retry loop.
 
 `MusicLinks.slug` is safe by construction — it splits on
 `CharacterSet.alphanumerics.inverted` and joins what survives, so a slug is

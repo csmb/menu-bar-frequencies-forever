@@ -65,7 +65,8 @@ final class PlayerController: ObservableObject {
 
     /// 2, 4, 8, 16, 32 seconds: five retries over about a minute of gaps,
     /// which covers a lid reopened while Wi-Fi rejoins, and stays a good
-    /// guest — at most six connection attempts per incident.
+    /// guest — at most six connection attempts per incident, and a new
+    /// incident only once playback has held for `steadyAfter`.
     nonisolated static let defaultReconnectDelays: [Duration] =
         [.seconds(2), .seconds(4), .seconds(8), .seconds(16), .seconds(32)]
 
@@ -81,11 +82,15 @@ final class PlayerController: ObservableObject {
     private var hasPlayedSinceIntent = false
     private var reconnectAttempt = 0
     private var reconnectTask: Task<Void, Never>?
+    /// Clears the reconnect budget once playback has held — see
+    /// `startSteadyTimer()`.
+    private var steadyTimer: Task<Void, Never>?
     /// Not in `cancellables` — teardown() clears those with every rebuild,
     /// and this subscription lasts the controller's life.
     private var wakeObserver: AnyCancellable?
     private let loadingTimeout: Duration
     private let reconnectDelays: [Duration]
+    private let steadyAfter: Duration
     private let defaults: UserDefaults
     private let makePlayer: (AVPlayerItem) -> AVPlayer
 
@@ -95,6 +100,9 @@ final class PlayerController: ObservableObject {
     ///     Injectable so tests need not wait out the real timeout.
     ///   - reconnectDelays: the backoff gaps between automatic reconnect
     ///     attempts after a drop. Injectable so tests need not wait them out.
+    ///   - steadyAfter: how long playback has to hold before the next drop
+    ///     counts as a new incident with a fresh budget. Injectable so tests
+    ///     need not play for a minute.
     ///   - defaults: where the volume is remembered. Injectable so tests do
     ///     not read or write the level this machine is actually using.
     ///   - workspaceNotifications: where `NSWorkspace.didWakeNotification`
@@ -104,11 +112,13 @@ final class PlayerController: ObservableObject {
     ///     test can exercise `play()` without opening the stream.
     init(loadingTimeout: Duration = .seconds(20),
          reconnectDelays: [Duration] = PlayerController.defaultReconnectDelays,
+         steadyAfter: Duration = .seconds(60),
          defaults: UserDefaults = .standard,
          workspaceNotifications: NotificationCenter = NSWorkspace.shared.notificationCenter,
          makePlayer: @escaping (AVPlayerItem) -> AVPlayer = AVPlayer.init(playerItem:)) {
         self.loadingTimeout = loadingTimeout
         self.reconnectDelays = reconnectDelays
+        self.steadyAfter = steadyAfter
         self.defaults = defaults
         self.makePlayer = makePlayer
         // Not `defaults.double(forKey:)`: that answers 0 for a key nobody has
@@ -255,14 +265,37 @@ final class PlayerController: ObservableObject {
             // Already armed means we re-entered .loading from a stall; keep the
             // original deadline instead of extending it on every notification.
             if watchdog == nil { startWatchdog() }
+            cancelSteadyTimer()
         case .playing:
             hasPlayedSinceIntent = true
             cancelWatchdog()
+            if steadyTimer == nil { startSteadyTimer() }
         case .stopped, .reconnecting, .failed:
             // .reconnecting needs no watchdog: the backoff gap is its own
             // bounded timer, and the attempt it launches re-enters .loading.
             cancelWatchdog()
+            cancelSteadyTimer()
         }
+    }
+
+    /// The budget bounds one incident, not a listening session: without a
+    /// reset, a radio left on all day stopped for good at its sixth drop,
+    /// however cleanly it had recovered from the first five. But the reset
+    /// has to be earned by playback that holds. Granted on reaching
+    /// `.playing` alone, a stream that connects and drops straight away would
+    /// retry forever.
+    private func startSteadyTimer() {
+        let window = steadyAfter
+        steadyTimer = Task { [weak self] in
+            try? await Task.sleep(for: window)
+            guard !Task.isCancelled, let self, self.state == .playing else { return }
+            self.reconnectAttempt = 0
+        }
+    }
+
+    private func cancelSteadyTimer() {
+        steadyTimer?.cancel()
+        steadyTimer = nil
     }
 
     private func startWatchdog() {

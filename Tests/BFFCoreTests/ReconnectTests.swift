@@ -18,13 +18,29 @@ final class ReconnectTests: XCTestCase {
         try? await Task.sleep(for: .milliseconds(750))
     }
 
+    /// Polls instead of sleeping a fixed time, for a step that has to land
+    /// inside a watchdog window. Answers whether the condition came true.
+    private func waitUntil(within limit: Duration = .seconds(2),
+                           _ condition: () -> Bool) async -> Bool {
+        let deadline = ContinuousClock.now + limit
+        while !condition() {
+            if ContinuousClock.now > deadline { return false }
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+        return true
+    }
+
     /// A controller whose `play()` builds a counted, itemless AVPlayer — the
-    /// count is how these tests see reconnect attempts happen.
+    /// count is how these tests see reconnect attempts happen. `steadyAfter`
+    /// defaults to a minute, which no test here lives long enough to reach.
     private func makeController(reconnectDelays: [Duration],
                                 builds: Builds,
-                                workspaceNotifications: NotificationCenter = .init()) -> PlayerController {
-        PlayerController(loadingTimeout: stallTimeout,
+                                workspaceNotifications: NotificationCenter = .init(),
+                                loadingTimeout: Duration? = nil,
+                                steadyAfter: Duration = .seconds(60)) -> PlayerController {
+        PlayerController(loadingTimeout: loadingTimeout ?? stallTimeout,
                          reconnectDelays: reconnectDelays,
+                         steadyAfter: steadyAfter,
                          defaults: UserDefaults(suiteName: "reconnect-tests")!,
                          workspaceNotifications: workspaceNotifications,
                          makePlayer: { item in
@@ -151,6 +167,48 @@ final class ReconnectTests: XCTestCase {
         await waitPastTimeout()
         XCTAssertEqual(player.state, .reconnecting)
         player.stop()
+    }
+
+    /// The budget bounds one incident, not a whole listening session. Once a
+    /// reconnect has held steady, the next drop is a new incident with its own
+    /// retries — otherwise a radio left on all day stops for good at its sixth
+    /// drop, however cleanly it recovered from the first five.
+    func testDropAfterSteadyPlaybackGetsItsOwnRetries() async {
+        let builds = Builds()
+        let player = makeController(reconnectDelays: [.milliseconds(10)], builds: builds,
+                                    loadingTimeout: .milliseconds(300),
+                                    steadyAfter: .milliseconds(100))
+        player.play()
+        player.transition(to: .playing)
+        player.transition(to: .loading)                 // drop 1 spends the only retry
+        let firstRetry = await waitUntil { builds.count == 2 }
+        XCTAssertTrue(firstRetry)
+        player.transition(to: .playing)                 // which works
+        try? await Task.sleep(for: .milliseconds(250))  // and holds past steadyAfter
+        player.transition(to: .loading)                 // drop 2, a new incident
+        let secondRetry = await waitUntil { builds.count == 3 }
+        XCTAssertTrue(secondRetry, "the second drop got no retry; builds: \(builds.count)")
+        player.stop()
+    }
+
+    /// But only steady playback earns that. A stream that connects and drops
+    /// again straight away is still one incident, and has to run out of
+    /// retries rather than cycle forever — the good-guest bound.
+    func testQuickDropsStillExhaustTheBudget() async {
+        let builds = Builds()
+        let player = makeController(reconnectDelays: [.milliseconds(10)], builds: builds,
+                                    loadingTimeout: .milliseconds(300),
+                                    steadyAfter: .milliseconds(100))
+        player.play()
+        player.transition(to: .playing)
+        player.transition(to: .loading)                 // drop 1 spends the only retry
+        let firstRetry = await waitUntil { builds.count == 2 }
+        XCTAssertTrue(firstRetry)
+        player.transition(to: .playing)                 // connects...
+        player.transition(to: .loading)                 // ...and drops at once
+        try? await Task.sleep(for: .milliseconds(600))  // its watchdog, and then some
+        XCTAssertEqual(builds.count, 2)
+        XCTAssertEqual(player.state, timedOut)
     }
 
     /// `toggle()` reads `isActive`; while reconnecting the button must act as
