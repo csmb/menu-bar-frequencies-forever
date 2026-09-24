@@ -75,11 +75,54 @@ struct MenuView: View {
                 .font(.caption)
                 .foregroundStyle(.red)
         }
-        if service.fetchFailed {
-            Text("Can’t reach BFF.fm’s info service — playback is fine, but track and show details may be out of date.")
+        if let note = Self.infoNote(for: service.fetchFailure, player: player.state) {
+            Text(note.text)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// The note under the controls when now.json can't be fetched. It used to
+    /// say "playback is fine" whatever playback was doing: with the Wi-Fi off
+    /// it sat beside the player's own offline error, putting it down to
+    /// BFF.fm. What it says now depends on why the fetch failed and on what
+    /// the stream is doing.
+    enum InfoNote: Equatable {
+        /// This Mac has no connection.
+        case offline
+        /// BFF.fm's info service is failing; the stream plays on.
+        case infoDownStreamPlaying
+        /// BFF.fm's info service is failing, and nothing is meant to be playing.
+        case infoDown
+        /// Neither the info service nor the stream is getting through.
+        case infoAndStreamDown
+
+        var text: String {
+            switch self {
+            case .offline:
+                "You seem to be offline — check your Wi-Fi or network connection."
+            case .infoDownStreamPlaying:
+                "Can’t reach BFF.fm’s info service. The stream is playing, but track and show details may be out of date."
+            case .infoDown:
+                "Can’t reach BFF.fm’s info service, so track and show details may be out of date."
+            case .infoAndStreamDown:
+                "Can’t reach BFF.fm — neither the stream nor its show details are getting through. Check your connection, or try again shortly."
+            }
+        }
+    }
+
+    /// A playing stream is proof of a connection, so it is asked about first:
+    /// whatever the fetch said, the Mac is not offline while sound is coming
+    /// out.
+    static func infoNote(for failure: NowPlayingService.FetchFailure?,
+                         player: PlayerController.State) -> InfoNote? {
+        guard let failure else { return nil }
+        if player == .playing { return .infoDownStreamPlaying }
+        if failure == .offline { return .offline }
+        switch player {
+        case .reconnecting, .failed: return .infoAndStreamDown
+        case .stopped, .loading, .playing: return .infoDown
         }
     }
 

@@ -141,6 +141,35 @@ final class NowPlayingServiceTests: XCTestCase {
         XCTAssertEqual(service.nextPollInterval, NowPlayingService.pollInterval)
     }
 
+    // MARK: Why a fetch failed
+
+    /// Wi-Fi off comes back from URLSession as "not connected"; a network with
+    /// no way out usually fails at DNS. That is this Mac's problem, not the
+    /// station's, and the note under the controls has to know which.
+    func testOfflineIsToldFromAStationProblem() {
+        XCTAssertEqual(NowPlayingService.failure(for: URLError(.notConnectedToInternet)), .offline)
+        XCTAssertEqual(NowPlayingService.failure(for: URLError(.networkConnectionLost)), .offline)
+        XCTAssertEqual(NowPlayingService.failure(for: URLError(.cannotFindHost)), .offline)
+        XCTAssertEqual(NowPlayingService.failure(for: URLError(.timedOut)), .unavailable)
+        XCTAssertEqual(NowPlayingService.failure(for: URLError(.badServerResponse)), .unavailable)
+        XCTAssertEqual(NowPlayingService.failure(for: CocoaError(.coderReadCorrupt)), .unavailable)
+    }
+
+    func testFetchRecordsWhyItFailed() async {
+        let box = ProviderBox(.failure(URLError(.notConnectedToInternet)))
+        let service = makeService(box)
+        await service.fetch()
+        XCTAssertEqual(service.fetchFailure, .offline)
+
+        box.result = .success((payload, response(status: 503)))
+        await service.fetch()
+        XCTAssertEqual(service.fetchFailure, .unavailable)
+
+        box.result = .success((payload, response(status: 200)))
+        await service.fetch()
+        XCTAssertNil(service.fetchFailure)
+    }
+
     // MARK: BFF.fm identification rules
 
     func testEndpointCarriesAppID() {

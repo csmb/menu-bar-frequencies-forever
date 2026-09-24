@@ -76,6 +76,7 @@ Dropdown content, top to bottom:
    **Superseded:** loaded by `Artwork` instead, which `AsyncImage` could not be, so the request carries the User-Agent and `app_id`.
 4. Play/Stop button reflecting `PlayerController` state (shows a spinner while loading, error text on failure).
 5. "Can't reach BFF.fm" note when `fetchFailed` is set.
+   **Superseded:** the note says why. It says "offline" when the Mac has no connection and names BFF.fm's info service otherwise, and it calls the stream fine only while the stream is actually playing.
 6. Launch at Login toggle via `SMAppService.mainApp`.
 7. Quit button.
 

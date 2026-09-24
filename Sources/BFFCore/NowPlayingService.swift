@@ -15,7 +15,31 @@ final class NowPlayingService: ObservableObject {
     static let maxPollInterval: TimeInterval = 480
 
     @Published private(set) var nowPlaying: NowPlaying?
-    @Published private(set) var fetchFailed = false
+    /// Why the last fetch failed, or nil when it worked.
+    @Published private(set) var fetchFailure: FetchFailure?
+    var fetchFailed: Bool { fetchFailure != nil }
+
+    enum FetchFailure: Equatable {
+        /// This Mac could not get out at all — nothing to do with the station.
+        case offline
+        /// We got out, and BFF.fm's info service did not answer properly.
+        case unavailable
+    }
+
+    /// Wi-Fi off comes back from URLSession as "not connected" before any
+    /// request leaves the Mac, and a network with no way out usually fails at
+    /// DNS. Anything else — a timeout, a 5xx, a body that won't decode — got
+    /// somewhere, and is put down to the service.
+    static func failure(for error: Error) -> FetchFailure {
+        guard let code = (error as? URLError)?.code else { return .unavailable }
+        switch code {
+        case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed,
+             .internationalRoamingOff, .cannotFindHost, .dnsLookupFailed:
+            return .offline
+        default:
+            return .unavailable
+        }
+    }
 
     private let provider: DataProvider
     private let now: () -> Date
@@ -81,10 +105,10 @@ final class NowPlayingService: ObservableObject {
                 throw URLError(.badServerResponse)
             }
             nowPlaying = try JSONDecoder().decode(NowPlaying.self, from: data)
-            fetchFailed = false
+            fetchFailure = nil
             consecutiveFailures = 0
         } catch {
-            fetchFailed = true
+            fetchFailure = Self.failure(for: error)
             consecutiveFailures += 1
         }
         // Schedule the next poll from the outcome we just learned, so a failure
