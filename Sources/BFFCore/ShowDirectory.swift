@@ -164,13 +164,14 @@ final class ShowDirectory: ObservableObject {
     }
 
     /// iCalendar wraps long lines and marks the continuation with a leading
-    /// space, so a SUMMARY can arrive split across several lines.
+    /// space, so a SUMMARY can arrive split across several lines. A
+    /// continuation with nothing before it — a body that opens with a space —
+    /// is kept as a line of its own; there is nothing to join it to.
     private static func unfolded(_ ics: String) -> [String] {
         var lines: [String] = []
         for raw in ics.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n") {
-            if raw.hasPrefix(" ") || raw.hasPrefix("\t") {
-                lines[lines.isEmpty ? lines.startIndex : lines.index(before: lines.endIndex)]
-                    += raw.dropFirst()
+            if raw.hasPrefix(" ") || raw.hasPrefix("\t"), let last = lines.indices.last {
+                lines[last] += raw.dropFirst()
             } else {
                 lines.append(raw)
             }

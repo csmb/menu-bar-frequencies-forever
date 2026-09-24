@@ -64,6 +64,20 @@ final class ShowDirectoryTests: XCTestCase {
         )
     }
 
+    /// A body that opens with a space or tab starts with a continuation line
+    /// and nothing to continue. That indexed an empty array and crashed every
+    /// copy of the app on its first dropdown open; the rest of the feed must
+    /// still be read.
+    func testFeedStartingWithWhitespaceStillParses() {
+        let feed = [" BEGIN:VCALENDAR",
+                    "BEGIN:VEVENT",
+                    "SUMMARY:Real Show on BFF.FM",
+                    "URL:https://bff.fm/shows/real-show",
+                    "END:VEVENT"].joined(separator: "\r\n")
+        XCTAssertEqual(ShowDirectory.parse(feed)["real show"]?.absoluteString,
+                       "https://bff.fm/shows/real-show")
+    }
+
     func testUnknownShowHasNoURL() async {
         let directory = directory(returning: feed)
         await directory.load()
