@@ -96,7 +96,12 @@ more than it must. Two rules hold this up, and both have been broken once:
   able to alter one of those responses could point every installed copy of this
   app at a URL of its choosing. `trusted` requires https and a `bff.fm` host —
   `hasSuffix(".bff.fm")` plus an exact match, because a bare suffix test
-  accepts `notbff.fm`.
+  accepts `notbff.fm`. The host must first be a plain DNS name, `[a-z0-9.-]`
+  only, because the suffix test is only as good as the string it runs on:
+  `https://[::ffff:203.0.113.7%25x.bff.fm]/` is an IPv6 address whose zone ID
+  ends in `.bff.fm`, and the network stack ignores the zone and connects to
+  the address. That one passed the check until 2026-09. Credentials in the URL
+  are refused too.
 - **A user cannot outpace the poll interval by clicking.** Opening the dropdown
   starts polling and polling starts with a fetch, so every click on the menu
   bar icon was a request — a dozen idle open/closes sent a dozen, against a

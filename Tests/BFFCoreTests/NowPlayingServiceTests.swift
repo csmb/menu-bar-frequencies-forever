@@ -281,6 +281,26 @@ final class TrustedURLTests: XCTestCase {
         XCTAssertNil(BFFAPI.trusted(URL(string: "file:///etc/passwd")))
         XCTAssertNil(BFFAPI.trusted(URL(string: "javascript:alert(1)")))
     }
+
+    /// The suffix test is only as good as the string it runs on. Each of these
+    /// has a host ending in ".bff.fm" that is not a bff.fm name.
+    func testRejectsHostsThatAreNotPlainNames() {
+        // IPv6 addresses whose zone ID ends in .bff.fm. The network stack
+        // ignores the zone and connects to the address — the first of these
+        // reached a local listener before this check existed.
+        XCTAssertNil(BFFAPI.trusted(URL(string: "https://[::ffff:203.0.113.7%25x.bff.fm]/a.png")))
+        XCTAssertNil(BFFAPI.trusted(URL(string: "https://[::1%25x.bff.fm]/a.png")))
+        // Escapes that decode to characters no hostname can hold.
+        XCTAssertNil(BFFAPI.trusted(URL(string: "https://evil.example%00.bff.fm/a.png")))
+        XCTAssertNil(BFFAPI.trusted(URL(string: "https://evil.example%2F.bff.fm/a.png")))
+    }
+
+    /// Credentials have no place in a link to bff.fm, and they are the classic
+    /// way to make a URL read as one host while it goes to another.
+    func testRejectsCredentials() {
+        XCTAssertNil(BFFAPI.trusted(URL(string: "https://evil.example%5C@bff.fm/x")))
+        XCTAssertNil(BFFAPI.trusted(URL(string: "https://user:pass@bff.fm/x")))
+    }
 }
 
 @MainActor

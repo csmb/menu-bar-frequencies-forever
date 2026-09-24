@@ -44,11 +44,23 @@ enum BFFAPI {
     static func trusted(_ url: URL?) -> URL? {
         guard let url,
               url.scheme?.lowercased() == "https",
-              let host = url.host?.lowercased(),
+              // Credentials have no place in a link to bff.fm, and they are
+              // the classic way to make a URL read as one host and go to
+              // another.
+              url.user(percentEncoded: true) == nil,
+              url.password(percentEncoded: true) == nil,
+              let host = url.host(percentEncoded: true)?.lowercased(),
+              // A plain DNS name first, because the suffix test is only as good
+              // as the string it runs on: `[::ffff:203.0.113.7%25x.bff.fm]` is
+              // an IPv6 address whose zone ID ends in ".bff.fm", and the
+              // network stack ignores the zone and connects to the address.
+              host.allSatisfy(hostCharacters.contains),
               // Suffix alone would accept "notbff.fm"; the dot makes it a
               // subdomain check rather than a string match.
               host == "bff.fm" || host.hasSuffix(".bff.fm")
         else { return nil }
         return url
     }
+
+    private static let hostCharacters = Set("abcdefghijklmnopqrstuvwxyz0123456789.-")
 }
