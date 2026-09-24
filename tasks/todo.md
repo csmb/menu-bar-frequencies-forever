@@ -1,3 +1,39 @@
+# User-Agent follows the app's version (2026-09-24)
+
+The User-Agent's version is read at runtime from the app bundle's Info.plist
+— the file `make release VERSION=…` stamps — instead of being set by hand, so
+a release moves it along with the DMG name, the volume name and the About box.
+Outside the app bundle (`swift test`, a bare `swift run`) it says `dev` rather
+than borrow the host process's version.
+
+## Todo
+
+- [x] RED/GREEN: the version comes from the bundle, and only from ours
+- [x] RED/GREEN: a bundle built from the real `Scripts/Info.plist` names its
+      version — catches the bundle identifier and `appID` drifting apart
+- [x] End to end: a stamped release in a scratch clone reaches the built
+      app's Info.plist
+- [x] Docs: the Makefile's "only place a version is written", `BFFAPI`, the
+      spec's note, CLAUDE.md
+
+## Review
+
+The three tests build real bundles on disk. Against a stub returning the
+hand-set constant, they got `/1.1` where they wanted `/9.9` (our bundle),
+`/dev` (another program's) and `/1.4` (the real Info.plist). The last reads
+its expected version from the file, so it follows every release. Planting a
+drifted `appID` made it fail with `/dev`: the shipped app would otherwise have
+sent that without a word.
+
+End to end, in a scratch clone with no signing identity, `make release
+VERSION=9.9` stamped the plist and built the app before refusing at the
+Developer ID check. The built app's Info.plist said 9.9 with our identifier,
+and the real `userAgent(for:)` on that bundle returned
+`menu-bar-frequencies-forever/9.9`. 109 tests, zero warnings in debug and
+release.
+
+---
+
 # Review fixes, round 2 (2026-09-24)
 
 Items 7–10 from the review's "Should fix", artwork identification, the

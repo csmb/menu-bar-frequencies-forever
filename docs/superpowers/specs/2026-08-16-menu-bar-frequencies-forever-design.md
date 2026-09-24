@@ -47,7 +47,7 @@ A macOS menu bar app that streams BFF.fm (San Francisco community radio) live au
   ```
   All fields are treated as optional when decoding — the API may return show-only data with no track.
 - Per BFF.fm's developer rules, both requests send `app_id=menu-bar-frequencies-forever` (query parameter) and a custom `User-Agent` (`menu-bar-frequencies-forever/<version>`).
-  **Superseded:** the `app_id` is `com.bunting.menu-bar-frequencies-forever`, the reverse URI form the rules ask for, and it goes on now.json, the schedule feed, the stream and artwork. The User-Agent is versioned by hand in `BFFAPI.swift` (1.1), not with the app.
+  **Superseded:** the `app_id` is `com.bunting.menu-bar-frequencies-forever`, the reverse URI form the rules ask for, and it goes on now.json, the schedule feed, the stream and artwork. The User-Agent's `<version>` is the app's, as written here: it is read from the bundle's Info.plist, so `make release` sets it.
 - **Icon:** `https://aw.bff.fm/assets/art/coolrock/1b4090e648255af9e8eeede0ab4a9b9e289d2857.svg`, committed to the repo as a bundled resource (not fetched at runtime).
 
 ## Architecture

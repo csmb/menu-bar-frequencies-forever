@@ -32,10 +32,9 @@ dmg:
 	Scripts/make-dmg.sh
 
 # Cut a release: stamp the version into Info.plist, then build the notarized,
-# stapled disk image. Info.plist is the only place the app's version is
-# written; the DMG filename, the volume name, and the app itself all read it
-# from there, so they cannot disagree. (The User-Agent carries a version of its
-# own, set by hand in BFFAPI.swift.)
+# stapled disk image. Info.plist is the only place a version is written; the
+# DMG filename, the volume name, the app itself and its User-Agent all read it
+# from there, so they cannot disagree.
 #
 #   make release VERSION=1.1
 # The validation is a `case`, not `echo | grep -q`, to keep the no-pipe habit

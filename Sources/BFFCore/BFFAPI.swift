@@ -14,9 +14,21 @@ import Foundation
 enum BFFAPI {
     /// Reverse URI form, matching the app's bundle identifier.
     static let appID = "com.bunting.menu-bar-frequencies-forever"
-    /// Versioned on its own, not with the app, and bumped by hand. 1.1 is the
-    /// first to identify artwork requests too.
-    static let userAgent = "menu-bar-frequencies-forever/1.1"
+    /// Carries the app's own version, read from the bundle's Info.plist — the
+    /// file `make release` stamps — so a release moves it along with the DMG
+    /// name, the volume name and the About box. Set by hand, it still said 1.0
+    /// in 1.4.
+    static let userAgent = userAgent(for: .main)
+
+    /// The bundle's version when the bundle is this app, and "dev" when it is
+    /// not: under `swift test`, or a bare `swift run`, the main bundle belongs
+    /// to some other program, and its version is not ours to send.
+    static func userAgent(for bundle: Bundle) -> String {
+        let version = bundle.bundleIdentifier == appID
+            ? bundle.infoDictionary?["CFBundleShortVersionString"] as? String
+            : nil
+        return "menu-bar-frequencies-forever/\(version ?? "dev")"
+    }
 
     /// Show and track metadata for whatever is on air right now.
     static let nowPlaying = identified(URL(string: "https://data.bff.fm/api/data/onair/now.json")!)

@@ -23,7 +23,7 @@ one-line executable calling `BFFMenuBarApp.main()`.
 make app      # $BUILD_DIR/BFF.FM – Menu Bar Frequencies Forever.app
 make install  # copies it to /Applications
 make dmg      # drag-to-install disk image, in $BUILD_DIR
-make test     # 106 tests, 3 of them env-gated measurements that skip
+make test     # 109 tests, 3 of them env-gated measurements that skip
 ```
 
 **With Xcode 27, `make test` fails inside this folder**, with the same
@@ -86,13 +86,23 @@ Developer rules: <https://developer.bff.fm/about/developer-rules>. They ask for
 `app_id` in **reverse URI form** — hence `com.bunting.menu-bar-frequencies-forever`, not a
 slug — and to poll gently. Metadata is fetched once every 30s, backing off
 toward 8 minutes while their info service fails, and only while playing or
-while the dropdown is open. All identity and URLs live in
-`BFFAPI.swift` so they cannot drift apart. Every request to their data carries
-the User-Agent and `app_id`, artwork included: cover art is loaded by
-`Artwork`, through the same live provider as now.json. Until 2026-09 it went
-out through SwiftUI's `AsyncImage`, which can set neither — so the request made
-most often was the one they could not attribute. Show pages, being the
-website rather than an endpoint, get the User-Agent only.
+while the dropdown is open. All identity and URLs live in `BFFAPI.swift` so
+they cannot drift apart.
+
+Every request to their data carries the User-Agent and `app_id`, artwork
+included: cover art is loaded by `Artwork`, through the same live provider as
+now.json. Until 2026-09 it went out through SwiftUI's `AsyncImage`, which can
+set neither — so the request made most often was the one they could not
+attribute. Show pages, being the website rather than an endpoint, get the
+User-Agent only.
+
+The User-Agent's version is the app's, read at runtime from the bundle's
+Info.plist — the file `make release` stamps — so a release moves it with
+everything else. Set by hand, it still said 1.0 in 1.4. Outside the app bundle
+(`swift test`, a bare `swift run`) it says `dev`, because the main bundle there
+is some other program's. A test builds a bundle from the real
+`Scripts/Info.plist`, so the bundle identifier and `appID` cannot drift apart
+— which would quietly send `dev` from the shipped app — without it failing.
 
 | What | Where |
 |---|---|
