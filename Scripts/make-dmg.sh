@@ -1,5 +1,5 @@
 #!/bin/bash
-# Packages build/BFF.FM – Menu Bar Frequencies Forever.app into a drag-to-install disk image.
+# Packages $BUILD_DIR/BFF.FM – Menu Bar Frequencies Forever.app into a drag-to-install disk image.
 #
 # When build-app.sh found a Developer ID certificate, this also notarizes and
 # staples — both the app and the disk image around it. Stapling the app matters

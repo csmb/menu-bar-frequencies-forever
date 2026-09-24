@@ -1,5 +1,5 @@
 #!/bin/bash
-# Assembles build/BFF.FM – Menu Bar Frequencies Forever.app from the SwiftPM release build.
+# Assembles $BUILD_DIR/BFF.FM – Menu Bar Frequencies Forever.app from the SwiftPM release build.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

@@ -2,9 +2,10 @@ import AppKit
 
 /// The Cool Rock menu bar icon.
 ///
-/// Stopped, it's the plain mascot in full colour. Playing, it rocks gently
-/// side to side with three equalizer bars beside it — the rock carries the
-/// station's character, the bars say unambiguously that audio is running.
+/// Stopped, it's the plain mascot in full colour. Playing — or connecting, or
+/// reconnecting after a drop, since it follows `isActive` — it rocks gently
+/// side to side with three equalizer bars beside it: the rock carries the
+/// station's character, the bars say the radio is on.
 ///
 /// The playing frames are rendered once and cached, so the animation costs a
 /// timer swapping a prepared bitmap rather than redrawing an SVG 15 times a

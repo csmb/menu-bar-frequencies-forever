@@ -1,5 +1,11 @@
 # BFF.FM – Menu Bar Frequencies Forever: Implementation Plan
 
+> **Historical.** This is how the first version was built, kept as a record and
+> not maintained. Much of it no longer describes the app: `MenuBarExtra`,
+> `build/` output, ad-hoc signing, `AsyncImage`, a `/1.0` User-Agent and the
+> old `app_id`. For the app as it is, read CLAUDE.md and the spec, whose
+> departures are marked **Superseded**.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** A macOS menu bar app that streams BFF.fm live audio, with a dropdown showing the current show, current song, and album art.

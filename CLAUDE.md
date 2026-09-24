@@ -8,8 +8,9 @@ with the notarized DMG attached to each release.
 
 - **Spec:** `docs/superpowers/specs/2026-08-16-menu-bar-frequencies-forever-design.md`
   — the binding authority for anything it and the plan disagree on, *except*
-  where it is marked **Superseded**: the shipped app is not `MenuBarExtra` and
-  its stopped icon is not dimmed. Both were deliberate departures.
+  where it is marked **Superseded**. The shipped app has moved past it in
+  several places — not `MenuBarExtra`, no dimmed icon, notarized distribution,
+  auto-reconnect, a fuller dropdown — each annotated where it happens.
 - **Plan:** `docs/superpowers/plans/2026-08-16-menu-bar-frequencies-forever.md`
   — how it was built. Contains a few errors the spec does not (see History).
 
@@ -22,8 +23,15 @@ one-line executable calling `BFFMenuBarApp.main()`.
 make app      # $BUILD_DIR/BFF.FM – Menu Bar Frequencies Forever.app
 make install  # copies it to /Applications
 make dmg      # drag-to-install disk image, in $BUILD_DIR
-make test     # 75 tests
+make test     # 106 tests, 3 of them env-gated measurements that skip
 ```
+
+**With Xcode 27, `make test` fails inside this folder**, with the same
+"detritus not allowed" error described below: the new build system code-signs
+the `.xctest` bundle, and iCloud stamps it. `swift build` and `swift build -c
+release` still work in place, so `make app` and `make dmg` are unaffected. Until
+the Makefile sends tests elsewhere, run them off iCloud with
+`swift test --scratch-path /tmp/menu-bar-frequencies-forever-tests`.
 
 Keep the build at **zero warnings** and the suite green. `Makefile` recipes
 need tab indentation. The app name contains spaces, so every path built from it
@@ -76,8 +84,9 @@ page here silently stopped resetting and the dropdown reopened into settings.
 
 Developer rules: <https://developer.bff.fm/about/developer-rules>. They ask for
 `app_id` in **reverse URI form** — hence `com.bunting.menu-bar-frequencies-forever`, not a
-slug — and to poll gently. Metadata is fetched once every 30s and only while
-playing or while the dropdown is open. All identity and URLs live in
+slug — and to poll gently. Metadata is fetched once every 30s, backing off
+toward 8 minutes while their info service fails, and only while playing or
+while the dropdown is open. All identity and URLs live in
 `BFFAPI.swift` so they cannot drift apart. Every request to their data carries
 the User-Agent and `app_id`, artwork included: cover art is loaded by
 `Artwork`, through the same live provider as now.json. Until 2026-09 it went
@@ -96,7 +105,7 @@ website rather than an endpoint, get the User-Agent only.
 ### Being a good guest
 
 The station gets nothing from us but load, so the app is built not to cost them
-more than it must. Two rules hold this up, and both have been broken once:
+more than it must. Two rules hold this up, and each has been broken twice:
 
 - **Every URL we did not write goes through `BFFAPI.trusted`.** The schedule
   feed's `URL:` property, the `image`/`program_image` fields, and the
@@ -138,15 +147,24 @@ and made the first post-wake failure final. Don't "improve" any of this into an
 unbounded retry loop.
 
 `MusicLinks.slug` is safe by construction — it splits on
-`CharacterSet.alphanumerics.inverted` and joins what survives, so a slug is
-`[a-z0-9]*` and no track title can reach outside the path it is interpolated
-into. Do not "improve" it into something that preserves punctuation.
+`CharacterSet.alphanumerics.inverted` and joins what survives, so a slug holds
+only letters, marks and digits and nothing that can end a path segment. That
+means Unicode ones too, not `[a-z0-9]` as this file once claimed: `Røyksopp`
+keeps its `ø` and `坂本龍一` stays as written. They reach the URL as
+percent-encoded UTF-8, every byte of which is 0x80 or above, so no track title
+can reach outside the path it is interpolated into. Do not "improve" it into
+something that preserves punctuation.
 
-The app writes exactly one thing to disk: `streamVolume`, its own playback
+The app writes one thing of its own to disk: `streamVolume`, its playback
 level. Nothing of BFF.fm's is stored — no metadata, no schedule, no artwork
 kept by us — so what was said to the station still holds. `defaults read
-com.bunting.menu-bar-frequencies-forever` should stay a one-key dictionary;
-if it ever grows, check whether the new key is theirs before shipping it.
+com.bunting.menu-bar-frequencies-forever` shows two more keys, both written by
+Apple's frameworks rather than us: `AVRoutingControllerIRSessionServiceTokenKey`
+(the AirPlay picker) and `NSStatusItem Preferred Position Item-0` (AppKit, where
+the icon sits). If it grows beyond those, check whether the new key is theirs
+before shipping it. The stream's CDN also sets a one-hour `DASSessionId`
+cookie, which AVFoundation keeps in the app's `~/Library/HTTPStorages` jar —
+framework-managed, like the HTTP cache below.
 
 Responses do land in `URLSession`'s shared HTTP cache, which is not ours and
 obeys their headers: `no-cache, must-revalidate` on the API, `immutable` on
@@ -178,9 +196,12 @@ after its subject. **Status code alone proves nothing.**
 
 ## Testing
 
-The spec scopes unit tests to `NowPlaying` decoding and poll gating; views and
-playback are manual verification. Slug rules, the icon, and link composition
-are covered because they are pure logic.
+The spec scoped unit tests to `NowPlaying` decoding and poll gating; the suite
+has since grown to cover whatever can be driven without the UI: the reconnect
+state machine (through `transition(to:)` and an inert fake player), the URL
+trust check, schedule and show-page parsing, slugs, the icon's rendered
+pixels, and how artwork requests identify us. Views are still verified by
+screenshot, and real playback by the env-gated live tests.
 
 Make a test isolate what it claims. "The animation frames differ" passed while
 the rock sat perfectly still, because the equalizer bars differ between every
@@ -249,11 +270,20 @@ strayed into the user's browser. Prefer: one bash invocation, no intervening
 `osascript`, and a screenshot diff to confirm the popover is open *before*
 clicking anything. Even that is not enough to press a button: a CGEvent click
 at coordinates verified to be inside the confirmed-open popover has dismissed
-it without the button firing. To check playback headless, skip the mouse —
-the status icon animates only while playback is active, so two icon-region
-captures ~0.7s apart differ exactly when sound should be coming out; and the
-env-gated live tests (`LIVE_RECONNECT=1`, `MEASURE_TIME_TO_AUDIO=1`) exercise
-the real stream with no UI at all.
+it without the button firing. To check playback headless, skip the mouse. The
+status icon animates while the player is active, so two icon-region captures
+~0.7s apart differ when it is — but active includes connecting and
+reconnecting, so a diff proves the player is trying, not that sound is coming
+out. The env-gated live tests (`LIVE_RECONNECT=1`, `MEASURE_TIME_TO_AUDIO=1`)
+exercise the real stream with no UI at all.
+
+To exercise `PlayerController` end to end without sound and without the
+station, point `BFFAPI.stream` — in a scratch copy — at a local Icecast-style
+server: `HTTP/1.0 200`, `Content-Type: audio/mpeg`, no Content-Length, paced
+at about 16KB/s, then a clean close. Serve silence (`lame -b 128` over a WAV
+of zeros) and inject a defaults suite with `streamVolume` 0. AVFoundation
+opens two connections at the start, a probe and then the stream. That is how
+the stream-end and per-drop reconnect behaviour was verified.
 
 **Mute before testing playback** (`set volume output muted true`) and restore
 the previous setting afterwards. Audio has started unintentionally more than
@@ -262,7 +292,11 @@ once.
 ## Distribution — current state
 
 **Solved.** `make dmg` produces a Developer ID signed, notarized, stapled disk
-image that opens on any Mac with no warning. Verified against a *quarantined*
+image that opens on any Apple silicon Mac with no warning. It does not open on
+an Intel Mac at all: `swift build -c release` builds for the host only, so the
+binary is arm64 (`lipo -archs` to check). `--arch arm64 --arch x86_64` builds a
+universal one, though Xcode 27 warns that x86_64 is deprecated, and macOS 26
+is the last release Intel Macs get. Verified against a *quarantined*
 copy, not just a local one — `spctl` on a file you built yourself proves very
 little, because the flag Gatekeeper keys off is only set on download. To
 re-check after changes:
@@ -399,11 +433,13 @@ The plan contains three defects the spec does not: an `AVPlayer.TimeControlStatu
 case that does not exist, a fallback string the spec contradicts, and a static
 icon where the spec asks for a spinner. Treat plan code blocks as drafts.
 
-**The spec is stale in two places, both annotated in it.** It specifies
-`MenuBarExtra` and a desaturated, dimmed icon while stopped; the app uses
-`NSStatusItem`/`NSPopover` and stays full colour in both states, showing play
-as motion instead. The README described the dimmed behaviour for months after
-it stopped being true — prose about the icon is worth checking against
+**The spec is stale wherever it is annotated Superseded, and it is annotated
+wherever it is stale.** The first two departures were `MenuBarExtra`, where the
+app uses `NSStatusItem`/`NSPopover`, and a desaturated, dimmed icon while
+stopped, where it stays full colour and shows play as motion. Distribution,
+reconnect, polling backoff, the dropdown's contents, the app_id and artwork
+loading followed. The README described the dimmed behaviour for months after it
+stopped being true — prose about the icon is worth checking against
 `StatusIcon.swift`, which is short and states its own intent.
 
 Layout has been iterated on with the user against browser mockups rather than

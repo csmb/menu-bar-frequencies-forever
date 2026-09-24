@@ -6,9 +6,10 @@
 // offset becomes the app icon's offset, and macOS 26 then composites the whole
 // thing onto its rounded tile, where the rock sits visibly high.
 //
-// So: find what is actually drawn by scanning alpha, scale that to a fixed
-// share of the canvas, and centre it. Measuring beats trusting the viewBox,
-// because the SVG's bounds and its ink are not the same rectangle.
+// So: find what is actually drawn by comparing each pixel with the backdrop
+// colour (not alpha — see contentBounds), scale that to a fixed share of the
+// canvas, and centre it. Measuring beats trusting the viewBox, because the
+// SVG's bounds and its ink are not the same rectangle.
 //
 // Usage: swift Scripts/app-icon.swift <rasterized.png> <output.png>
 
@@ -121,7 +122,7 @@ NSColor(calibratedRed: CGFloat(backdrop.0) / 255,
         alpha: 1).setFill()
 NSRect(x: 0, y: 0, width: side, height: side).fill()
 
-// AppKit's origin is bottom-left and inkBounds counted rows from the top, so
+// AppKit's origin is bottom-left and contentBounds counted rows from the top, so
 // the crop rectangle has to be flipped before it means the same thing here.
 let crop = NSRect(x: ink.minX,
                   y: CGFloat(source.pixelsHigh) - ink.maxY - 1,

@@ -16,9 +16,9 @@ button](docs/screenshots/demo.gif)
 **[Download the latest release](https://github.com/csmb/menu-bar-frequencies-forever/releases/latest)**
 — open the DMG and drag the app onto Applications.
 
-Requires macOS 14 or later. It is signed and notarized, so it opens with no
-Gatekeeper warning. Use the in-app "Launch at Login" toggle once it's in
-`/Applications`.
+Requires a Mac with Apple silicon and macOS 14 or later. It is signed and
+notarized, so it opens with no Gatekeeper warning. Use the in-app "Launch at
+Login" toggle once it's in `/Applications`.
 
 ## Building it yourself
 
@@ -39,13 +39,15 @@ certificate and a tree with everything committed), `make test` (unit tests),
 
 - Streams `https://stream.bff.fm/1/mp3.mp3` (128 kbps MP3) with AVPlayer,
   rejoining the live edge on every play.
-- A dropped stream reconnects by itself — five tries over about a minute,
-  backing off each time, then giving up honestly — and waking from sleep
-  rejoins the live edge at once instead of waiting for the dead connection
-  to surface.
+- A dropped stream reconnects by itself, including one the server simply
+  ends: up to five tries, backing off from 2 to 32 seconds, then giving up
+  honestly. After a minute of steady playback the next drop gets a fresh set
+  of tries, and waking from sleep rejoins the live edge at once instead of
+  waiting for the dead connection to surface.
 - Show + track metadata comes from BFF.fm's public API
-  (`data.bff.fm/api/data/onair/now.json`), polled every 30 seconds — and only
-  while playing or while the dropdown is open.
+  (`data.bff.fm/api/data/onair/now.json`), polled every 30 seconds — backing
+  off to as long as 8 minutes while that service is failing, and only while
+  playing or while the dropdown is open.
 - The volume slider sets the stream's own level, multiplied against your
   system volume — so the radio can sit quieter than everything else. It is
   remembered between launches.

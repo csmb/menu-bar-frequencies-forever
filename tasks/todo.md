@@ -1,3 +1,64 @@
+# Review fixes, round 2 (2026-09-24)
+
+Items 7–10 from the review's "Should fix", artwork identification, the
+User-Agent bump, then the docs. One commit per item. Code changes go in
+test-first; the Makefile and script changes are verified by running them
+against controlled inputs in a scratch clone (a stand-in `security` that lists
+no identity, a scratch `BUILD_DIR`) — never a real release or notarization.
+
+## Todo
+
+- [x] 7. DJ-page lookups: a failed lookup waits out `retryFloor` before trying
+      again, like the schedule (8a5001c)
+- [x] 8. Link text: decode HTML entities properly — `&#039;` (bff.fm's
+      apostrophe), `&nbsp;`, numeric references in general (cce1bd1)
+- [x] 9. `BUILD_DIR`: ignore one exported in the shell, refuse an empty one;
+      `make clean` deletes only what the project writes (afc83ff)
+- [x] 10. `make release`: refuse without a Developer ID signature, and from a
+      tree with uncommitted changes (8ce64f1)
+- [x] Artwork requests carry the User-Agent and `app_id` (replaces
+      `AsyncImage`) (8d44617)
+- [x] User-Agent bumped to 1.1 (174468d)
+- [x] Docs: CLAUDE.md, README, the spec (Superseded notes), script headers,
+      app-icon comments, the previous task's review
+- [x] Full suite from a clean export of HEAD, zero warnings
+
+## Review
+
+The code changes went in test-first, each new test failing on the old code:
+
+- 7: ten dropdown opens sent ten show-page requests.
+- 8: `&#039;`, `&#x…;` and `&nbsp;` were left undecoded.
+- Artwork: the request had no User-Agent and no `app_id`. RED here was taken
+  against a stand-in that fetched the way `AsyncImage` does, with the request
+  caught by a `URLProtocol` inside `URLSession.shared` so the real provider
+  runs off the network.
+
+The User-Agent bump has no test by design; one pinning the string could only
+fail on a deliberate change.
+
+The Makefile and script changes (9, 10) were verified by running them:
+`make -n` for each `BUILD_DIR` case, a real `make clean` in a scratch clone
+that left someone else's file alone, and `make release` in scratch clones with
+a stand-in `security` (no identity) and a stand-in `tiffutil` so no disk image
+was ever mounted. Before the fix, an ad-hoc release and one with an
+uncommitted edit both reached image building. After it, each is refused, and a
+re-run with only the version stamp uncommitted proceeds. No real release or
+notarization was run.
+
+Checked against real data:
+
+- The 38 DJ names on the six cached show pages decode cleanly.
+- a.bff.fm serves artwork with `app_id` attached: one request, 200,
+  image/jpeg.
+
+The docs now describe what ships: arm64 only, the `make test`-in-iCloud
+problem and its workaround, three defaults keys and a CDN cookie, Unicode
+slugs, and what the icon diff does and does not prove. The spec has a
+Superseded note wherever it is stale, and the build plan is marked historical.
+
+---
+
 # Review fixes: "Fix before the next release" (2026-09-24)
 
 The five release blockers from the full-repo review at 4f97b7f, one commit
@@ -62,6 +123,10 @@ re-runs `play()` with a fresh budget when playback is active. AirPlay via
 `AVRoutePickerView` at the trailing end of the volume row; `PlayerController`
 re-points `picker.player` at every rebuilt player.
 
+**Superseded:** `picker.player` stays nil — attaching it broke AirPlay on macOS,
+as the Todo below records. And since 2026-09-24 wake rebuilds without going
+through `play()`, so reconnect stays armed for the first connect after a wake.
+
 ## Todo
 
 - [x] RED/GREEN: reconnect state machine tests (`ReconnectTests.swift`)
@@ -92,3 +157,7 @@ rebuild. The AirPlay picker is pointed at each rebuilt player by the
 controller (`attachRoutePicker`), keeping `player` private. UI clicking for
 verification failed even done carefully — see lessons.md; icon-animation
 diffing and the gated live test replaced it. CLAUDE.md and README updated.
+
+**Superseded:** there is no `attachRoutePicker`; the picker's `player` stays
+nil. Icon diffing proves the player is active, not that sound is playing —
+it animates while connecting too (CLAUDE.md, Verifying UI changes).
