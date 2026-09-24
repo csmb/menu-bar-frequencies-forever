@@ -26,12 +26,13 @@ make dmg      # drag-to-install disk image, in $BUILD_DIR
 make test     # 109 tests, 3 of them env-gated measurements that skip
 ```
 
-**With Xcode 27, `make test` fails inside this folder**, with the same
-"detritus not allowed" error described below: the new build system code-signs
-the `.xctest` bundle, and iCloud stamps it. `swift build` and `swift build -c
-release` still work in place, so `make app` and `make dmg` are unaffected. Until
-the Makefile sends tests elsewhere, run them off iCloud with
-`swift test --scratch-path /tmp/menu-bar-frequencies-forever-tests`.
+**`make test` builds under `$BUILD_DIR/test-build`, off iCloud.** Since Xcode
+27, SwiftPM code-signs the `.xctest` bundle, and inside this folder iCloud
+stamps it first, so a plain `swift test` here fails with the same "detritus not
+allowed" error described below. Use `make test`, or pass `--scratch-path`
+somewhere outside iCloud. `swift build` and `swift build -c release` still work
+in place — the executable is not a bundle — so `make app` and `make dmg` are
+unaffected.
 
 Keep the build at **zero warnings** and the suite green. `Makefile` recipes
 need tab indentation. The app name contains spaces, so every path built from it

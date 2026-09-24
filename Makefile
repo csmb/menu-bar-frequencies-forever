@@ -24,6 +24,7 @@ NAME = BFF.FM – Menu Bar Frequencies Forever
 APP = $(BUILD_DIR)/$(NAME).app
 DEST = /Applications/$(NAME).app
 PLIST = Scripts/Info.plist
+TEST_BUILD = $(BUILD_DIR)/test-build
 
 app:
 	Scripts/build-app.sh
@@ -73,13 +74,16 @@ install: app
 run: app
 	open "$(APP)"
 
+# Off iCloud, like the app. Since Xcode 27, SwiftPM code-signs the .xctest
+# bundle it builds, and inside this folder iCloud stamps com.apple.FinderInfo
+# on it first, so a plain `swift test` here fails with "detritus not allowed".
 test:
-	swift test
+	swift test --scratch-path "$(TEST_BUILD)"
 
 # Only what this project writes into BUILD_DIR — it may be a directory you
 # pointed it at, and anything else in there is yours. The directory itself
 # goes only if that leaves it empty.
 clean:
-	rm -rf .build build "$(APP)"
+	rm -rf .build build "$(APP)" "$(TEST_BUILD)"
 	rm -f "$(BUILD_DIR)/$(NAME) "*.dmg
 	rmdir "$(BUILD_DIR)" 2>/dev/null || true
