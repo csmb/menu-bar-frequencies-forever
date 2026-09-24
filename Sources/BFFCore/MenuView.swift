@@ -168,14 +168,9 @@ struct MenuView: View {
     @ViewBuilder
     private var artwork: some View {
         if let url = service.nowPlaying?.artworkURL {
-            AsyncImage(url: url) { image in
-                image.resizable().scaledToFill()
-            } placeholder: {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(.quaternary)
-            }
-            .frame(width: 256, height: 256)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            ArtworkView(url: url)
+                .frame(width: 256, height: 256)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
         }
     }
 

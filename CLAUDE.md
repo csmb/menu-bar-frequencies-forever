@@ -78,7 +78,12 @@ Developer rules: <https://developer.bff.fm/about/developer-rules>. They ask for
 `app_id` in **reverse URI form** — hence `com.bunting.menu-bar-frequencies-forever`, not a
 slug — and to poll gently. Metadata is fetched once every 30s and only while
 playing or while the dropdown is open. All identity and URLs live in
-`BFFAPI.swift` so they cannot drift apart.
+`BFFAPI.swift` so they cannot drift apart. Every request to their data carries
+the User-Agent and `app_id`, artwork included: cover art is loaded by
+`Artwork`, through the same live provider as now.json. Until 2026-09 it went
+out through SwiftUI's `AsyncImage`, which can set neither — so the request made
+most often was the one they could not attribute. Show pages, being the
+website rather than an endpoint, get the User-Agent only.
 
 | What | Where |
 |---|---|
