@@ -39,6 +39,13 @@ dmg:
 #   make release VERSION=1.1
 # The validation is a `case`, not `echo | grep -q`, to keep the no-pipe habit
 # these scripts depend on — see CLAUDE.md, Build.
+#
+# A release is built from a commit: SwiftPM compiles every source file in the
+# folder, committed or not, and this folder is iCloud-synced. The version
+# stamp is the one change allowed, because release writes it itself and a
+# re-run after a failed notarization must not trip over it. And a release has
+# to open on other Macs, so REQUIRE_DISTRIBUTABLE makes make-dmg.sh refuse an
+# ad-hoc build instead of finishing it with a warning.
 release:
 	@case "$(VERSION)" in \
 	  "") echo "usage: make release VERSION=1.1" >&2; \
@@ -47,9 +54,15 @@ release:
 	  *[!0-9.]*) echo "error: VERSION must be digits and dots, e.g. 1.1 — got '$(VERSION)'" >&2; \
 	      exit 1 ;; \
 	esac
+	@uncommitted="$$(git status --porcelain -- . ':!$(PLIST)')"; \
+	if [ -n "$$uncommitted" ]; then \
+	  echo "error: a release is built from a commit, and these changes are not committed:" >&2; \
+	  echo "$$uncommitted" >&2; \
+	  exit 1; \
+	fi
 	/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(VERSION)" $(PLIST)
 	/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(VERSION)" $(PLIST)
-	$(MAKE) dmg
+	REQUIRE_DISTRIBUTABLE=1 $(MAKE) dmg
 
 install: app
 	test -d "$(APP)"

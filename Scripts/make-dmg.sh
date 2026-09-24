@@ -51,6 +51,20 @@ else
     DISTRIBUTABLE=0
 fi
 
+# `make release` sets REQUIRE_DISTRIBUTABLE, because a release that opens only
+# on this Mac is not a release. Without it an ad-hoc build ran to the end: a
+# correctly named disk image, exit 0, and a note nobody scrolls back to.
+if [ "${REQUIRE_DISTRIBUTABLE:-0}" = 1 ] && [ "$DISTRIBUTABLE" -ne 1 ]; then
+    cat >&2 <<'REFUSED'
+
+  error: the app is not Developer ID signed, and a release has to open on
+         other Macs. `security find-identity -v -p codesigning` should list a
+         "Developer ID Application" identity; see CLAUDE.md, Distribution.
+
+REFUSED
+    exit 1
+fi
+
 # A Developer ID signature that has not been notarized is still refused, so
 # there is no useful half-way state to ship. Check the credentials before the
 # slow part rather than after it.

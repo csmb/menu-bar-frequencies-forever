@@ -296,6 +296,15 @@ image, notarizes and staples that too, and verifies with `stapler validate` and
   ad-hoc one**, so there is no useful half-way build. `make dmg` checks for
   notary credentials *before* the slow part and stops if they are missing.
 
+`make dmg` still builds ad-hoc when there is no certificate, for local
+testing. `make release` does not: it sets `REQUIRE_DISTRIBUTABLE`, so an
+ad-hoc build stops with an error instead of ending in a correctly named DMG,
+exit 0 and a note — which is what it did until 2026-09. It also refuses a tree
+with uncommitted changes, because SwiftPM compiles every source file in this
+iCloud-synced folder, committed or not. The version stamp is the one exception:
+release writes it, and a re-run after a failed notarization must not trip over
+it.
+
 ### The disk image window
 
 Icon positions, window size and backdrop live in the image's `.DS_Store`, which

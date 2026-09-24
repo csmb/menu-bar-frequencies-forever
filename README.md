@@ -31,7 +31,9 @@ make install   # builds the app and copies it to /Applications
 
 Other targets: `make app` (build only), `make run` (build and launch),
 `make dmg` (drag-to-install disk image), `make release VERSION=1.1` (stamp a
-new version, then build the image), `make test` (unit tests), `make clean`.
+new version, then build the signed, notarized image — it needs a Developer ID
+certificate and a tree with everything committed), `make test` (unit tests),
+`make clean`.
 
 ## How it works
 
