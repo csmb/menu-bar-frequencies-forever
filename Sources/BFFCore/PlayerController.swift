@@ -198,6 +198,21 @@ final class PlayerController: ObservableObject {
             }
             .store(in: &cancellables)
 
+        // A live stream has no end, so reaching one means the server closed
+        // the connection cleanly — a source restart, a relay recycling its
+        // listeners. AVPlayer takes that as the item finishing: it plays out
+        // its buffer and pauses, with no error and no stall, and `.paused` is
+        // ignored above. Without this the app sat in `.playing` over silence
+        // with nothing left to notice, and never reconnected.
+        NotificationCenter.default
+            .publisher(for: AVPlayerItem.didPlayToEndTimeNotification, object: item)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self, self.player === player else { return }
+                self.fail(message: "The BFF.fm stream ended")
+            }
+            .store(in: &cancellables)
+
         // A mid-stream stall — Wi-Fi dropped, stream server went away — leaves
         // the player waiting for data with no error and no status change we
         // could otherwise catch. Park in .loading so the watchdog bounds the

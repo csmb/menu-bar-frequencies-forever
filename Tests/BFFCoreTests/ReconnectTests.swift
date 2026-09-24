@@ -27,13 +27,27 @@ final class ReconnectTests: XCTestCase {
                          reconnectDelays: reconnectDelays,
                          defaults: UserDefaults(suiteName: "reconnect-tests")!,
                          workspaceNotifications: workspaceNotifications,
-                         makePlayer: { _ in
+                         makePlayer: { item in
                              builds.count += 1
-                             return AVPlayer()
+                             builds.lastItem = item
+                             return InertPlayer()
                          })
     }
 
-    final class Builds { var count = 0 }
+    /// A bare `AVPlayer()` told to play reports `.waitingToPlayAtSpecifiedRate`
+    /// — it has no item — and the controller reads that as a stall, so every
+    /// test would get a drop it never staged, and a test could pass on the
+    /// watchdog alone. This one never starts, leaving the state to the test.
+    private final class InertPlayer: AVPlayer {
+        override func play() {}
+    }
+
+    /// `lastItem` is the stream item the controller built and is watching —
+    /// the object its AVPlayerItem notifications are filtered on.
+    final class Builds {
+        var count = 0
+        var lastItem: AVPlayerItem?
+    }
 
     /// Playback reached `.playing`, then dropped: instead of the terminal
     /// `.failed` the app used to show, the controller waits out a backoff gap.
@@ -44,6 +58,23 @@ final class ReconnectTests: XCTestCase {
         player.transition(to: .playing)
         player.transition(to: .loading)   // the stall notification's move
         await waitPastTimeout()           // watchdog fires → the old dead end
+        XCTAssertEqual(player.state, .reconnecting)
+        player.stop()
+    }
+
+    /// A live stream has no end, so reaching one means the server closed the
+    /// connection cleanly — a source restart, a relay recycling listeners.
+    /// AVPlayer reports that as the item finishing and quietly pauses: no
+    /// error, no stall, nothing for the watchdog. It has to count as a drop,
+    /// or the app sits in `.playing` over silence for good.
+    func testStreamEndingWhilePlayingReconnects() async {
+        let builds = Builds()
+        let player = makeController(reconnectDelays: [.seconds(10)], builds: builds)
+        player.play()
+        player.transition(to: .playing)
+        NotificationCenter.default.post(name: AVPlayerItem.didPlayToEndTimeNotification,
+                                        object: builds.lastItem)
+        await waitPastTimeout()
         XCTAssertEqual(player.state, .reconnecting)
         player.stop()
     }

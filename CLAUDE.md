@@ -162,6 +162,12 @@ pair — the real test compares the rock's half of the frame alone. Likewise the
 clipped-bar test reads rendered pixels, because the arithmetic that produced
 the bug would have produced the same wrong assertion.
 
+The fake player is part of that. A bare `AVPlayer()`, told to play, reports
+`.waitingToPlayAtSpecifiedRate` — it has no item — which `PlayerController`
+reads as a stall, so a reconnect test reached `.reconnecting` on the watchdog
+alone, with or without the code it was named for. `ReconnectTests` hands the
+controller an `InertPlayer` whose `play()` does nothing.
+
 ## SwiftUI/AppKit gotchas already paid for
 
 - `.frame(maxWidth: .infinity)` on a `Button` widens the *frame*; the control
@@ -187,6 +193,12 @@ the bug would have produced the same wrong assertion.
   and wake-from-sleep rebuild through the same path with nobody pressing
   anything, so the list of re-applied things is load-bearing: today it is
   exactly the volume, re-applied in `open()`.
+- **A live stream can end.** When Icecast or its CDN closes the connection
+  cleanly — a source restart, a relay recycling listeners — AVPlayer plays out
+  its buffer, posts `didPlayToEndTime` and pauses: no error, no stall.
+  `PlayerController` treats that notification as a drop. Unobserved, it left
+  the app in `.playing` over silence, never reconnecting. `.paused` on its own
+  stays ignored; `stop()` and `fail()` own those transitions.
 - **Never set `AVRoutePickerView.player` on macOS.** It is the obvious wiring
   and it shipped here once: the picker's checkboxes toggled and the audio
   never left the Mac (Apple Developer Forums threads 708248 and 744128, no
