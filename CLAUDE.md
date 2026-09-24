@@ -109,7 +109,9 @@ more than it must. Two rules hold this up, and both have been broken once:
   **synchronously in `fetchNow()`**, not inside the async `fetch()`: stamped in
   the Task, a burst of clicks all read the old value before the first one
   recorded anything, and the throttle looked right while doing nothing. The
-  schedule feed has its own `retryFloor` for the same reason.
+  schedule feed has its own `retryFloor` for the same reason, and so does each
+  DJ's show-page lookup — which went without one until 2026-09, so a dozen
+  opens against a failing show page sent a dozen requests.
 
 A third rule joined them with auto-reconnect: **a drop costs at most six
 connection attempts.** The backoff runs 2→32s and then settles into `.failed`

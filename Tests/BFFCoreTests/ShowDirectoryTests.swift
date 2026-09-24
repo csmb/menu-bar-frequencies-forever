@@ -152,4 +152,43 @@ final class PresenterLookupTests: XCTestCase {
                                       from: URL(string: "https://bff.fm/shows/x")!)
         XCTAssertNil(directory.url(forPresenter: "Someone Else"))
     }
+
+    /// A show page that errors is tried again, but not once per click. With
+    /// nothing holding it back, every open of the dropdown while bff.fm was
+    /// failing sent another request for a 40KB page — the pattern the poll
+    /// throttle and the schedule's `retryFloor` already rule out.
+    func testFailedLookupWaitsOutTheRetryFloor() async {
+        final class Counter: @unchecked Sendable { var showPages = 0 }
+        let counter = Counter()
+        var seconds = 1_000.0
+        let schedule = """
+        BEGIN:VEVENT
+        SUMMARY:Weird Al Jazeera on BFF.FM
+        URL:https://bff.fm/shows/a-hairy-home-companion
+        END:VEVENT
+        """
+        let directory = ShowDirectory(
+            provider: { url in
+                if url.absoluteString.contains(".ics") {
+                    return (Data(schedule.utf8), HTTPURLResponse(url: url, statusCode: 200,
+                                                                  httpVersion: nil, headerFields: nil)!)
+                }
+                counter.showPages += 1
+                return (Data(), HTTPURLResponse(url: url, statusCode: 503,
+                                                httpVersion: nil, headerFields: nil)!)
+            },
+            now: { Date(timeIntervalSince1970: seconds) })
+        await directory.load()
+
+        for _ in 0..<10 {                             // ten opens inside the floor
+            directory.loadPresenterIfNeeded("Donna Arkee", forShow: "Weird Al Jazeera")
+            try? await Task.sleep(for: .milliseconds(20))
+        }
+        XCTAssertEqual(counter.showPages, 1)
+
+        seconds += ShowDirectory.retryFloor + 1       // then the floor passes
+        directory.loadPresenterIfNeeded("Donna Arkee", forShow: "Weird Al Jazeera")
+        try? await Task.sleep(for: .milliseconds(20))
+        XCTAssertEqual(counter.showPages, 2)
+    }
 }

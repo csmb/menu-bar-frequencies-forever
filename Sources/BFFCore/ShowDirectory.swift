@@ -19,11 +19,15 @@ final class ShowDirectory: ObservableObject {
     private var presenterLookups: Set<String> = []
     /// A failed load is retried, but not on every click — see `retryFloor`.
     private var lastLoadAttempt: Date?
+    /// The same, per DJ: a show page that errors is asked for again only once
+    /// `retryFloor` has passed.
+    private var lastPresenterAttempt: [String: Date] = [:]
     private let now: () -> Date
 
-    /// How long a failure is allowed to stand before another attempt. Without
-    /// it, a station that is down turns every dropdown open into another 64KB
-    /// request for the same feed.
+    /// How long a failure is allowed to stand before another attempt, for the
+    /// schedule and for each DJ's show page. Without it, a station that is down
+    /// turns every dropdown open into another request — 64KB for the feed,
+    /// 40KB or more for a show page.
     static let retryFloor: TimeInterval = 60
 
     init(provider: @escaping DataProvider = NowPlayingService.liveProvider,
@@ -84,8 +88,12 @@ final class ShowDirectory: ObservableObject {
               !presenterLookups.contains(key),
               let showURL = url(forShow: show)
         else { return }
+        if let last = lastPresenterAttempt[key], now().timeIntervalSince(last) < Self.retryFloor {
+            return
+        }
 
         presenterLookups.insert(key)
+        lastPresenterAttempt[key] = now()
         Task { await loadPresenter(presenter, from: showURL) }
     }
 
@@ -100,7 +108,8 @@ final class ShowDirectory: ObservableObject {
                 urlsByPresenter[Self.key(presenter)] = match
             }
         } catch {
-            // No DJ link for this show; let a later open try again.
+            // No DJ link for this show; a later open may try again once
+            // `retryFloor` has passed.
             presenterLookups.remove(Self.key(presenter))
         }
     }
