@@ -124,8 +124,10 @@ NSRect(x: 0, y: 0, width: side, height: side).fill()
 
 // AppKit's origin is bottom-left and contentBounds counted rows from the top, so
 // the crop rectangle has to be flipped before it means the same thing here.
+// ink.maxY is already one past the last row, as insetBottom above assumes: a
+// further - 1 moved the crop a row down, cutting the artwork's top row off.
 let crop = NSRect(x: ink.minX,
-                  y: CGFloat(source.pixelsHigh) - ink.maxY - 1,
+                  y: CGFloat(source.pixelsHigh) - ink.maxY,
                   width: ink.width,
                   height: ink.height)
 source.draw(in: destination, from: crop, operation: .sourceOver,
