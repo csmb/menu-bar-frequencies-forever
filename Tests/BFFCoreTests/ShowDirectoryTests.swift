@@ -170,6 +170,16 @@ final class PresenterLookupTests: XCTestCase {
         XCTAssertEqual(links["r&b hour"]?.absoluteString, "https://bff.fm/people/rnb")
     }
 
+    /// References are decoded once. `&amp;amp;` is an escaped `&amp;`: the
+    /// page shows the text "&amp;", and decoding it twice would key the name
+    /// as something the page never displays.
+    func testAnEscapedReferenceIsDecodedOnce() {
+        let links = ShowDirectory.peopleLinks(in: """
+            <a href="/people/tj">Tom &amp;amp; Jerry</a>
+            """)
+        XCTAssertEqual(links["tom &amp; jerry"]?.absoluteString, "https://bff.fm/people/tj")
+    }
+
     func testBrowseAndFollowAreNotPeople() {
         XCTAssertNil(ShowDirectory.peopleLinks(in: showPage)["djs"])
     }

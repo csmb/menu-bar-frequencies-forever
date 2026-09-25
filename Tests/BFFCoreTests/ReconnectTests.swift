@@ -214,6 +214,32 @@ final class ReconnectTests: XCTestCase {
         XCTAssertEqual(player.state, timedOut)
     }
 
+    /// "Held" means unbroken. A stall that recovers inside the steady window
+    /// starts the window again, so a stream that keeps catching cannot earn a
+    /// fresh budget by adding its good stretches together.
+    func testOnlyUnbrokenPlaybackEarnsAFreshBudget() async {
+        let builds = Builds()
+        let player = makeController(reconnectDelays: [.milliseconds(10)], builds: builds,
+                                    loadingTimeout: .milliseconds(300),
+                                    steadyAfter: .milliseconds(800))
+        player.play()
+        player.transition(to: .playing)
+        player.transition(to: .loading)                 // drop 1 spends the only retry
+        let firstRetry = await waitUntil { builds.count == 2 }
+        XCTAssertTrue(firstRetry)
+        player.transition(to: .playing)                 // it connects: the clock starts
+        try? await Task.sleep(for: .milliseconds(500))
+        player.transition(to: .loading)                 // a stall at 500ms...
+        try? await Task.sleep(for: .milliseconds(100))
+        player.transition(to: .playing)                 // ...that recovers at 600ms
+        try? await Task.sleep(for: .milliseconds(400))
+        player.transition(to: .loading)                 // drop 2 at 1s: 900ms of play,
+                                                        // never 800ms of it unbroken
+        try? await Task.sleep(for: .milliseconds(600))  // its watchdog, and then some
+        XCTAssertEqual(builds.count, 2)
+        XCTAssertEqual(player.state, timedOut)
+    }
+
     /// `toggle()` reads `isActive`; while reconnecting the button must act as
     /// Stop, not Play.
     func testReconnectingIsActive() {
@@ -255,8 +281,9 @@ final class ReconnectTests: XCTestCase {
         XCTAssertEqual(player.state, .stopped)
     }
 
-    /// A wake mid-gap means the network story just changed; try now with a
-    /// fresh budget rather than sitting out the rest of the backoff.
+    /// A wake mid-gap means the network story just changed; try now rather
+    /// than sitting out the rest of the backoff. That the budget is fresh
+    /// too is testWakeGivesASpentBudgetAFreshStart's to show.
     func testWakeDuringReconnectRetriesAtOnce() async {
         let builds = Builds()
         let wake = NotificationCenter()
@@ -270,6 +297,26 @@ final class ReconnectTests: XCTestCase {
         wake.post(name: NSWorkspace.didWakeNotification, object: nil)
         await waitForNotificationDelivery()
         XCTAssertEqual(builds.count, 2)
+        player.stop()
+    }
+
+    /// Wake restarts the budget, because the network story changed: a drop
+    /// that had spent every gap before the lid closed still gets its retries
+    /// once it opens, instead of failing on the first post-wake timeout.
+    func testWakeGivesASpentBudgetAFreshStart() async {
+        let builds = Builds()
+        let wake = NotificationCenter()
+        let player = makeController(reconnectDelays: [.seconds(10)],
+                                    builds: builds, workspaceNotifications: wake)
+        player.play()
+        player.transition(to: .playing)
+        player.transition(to: .loading)             // the drop spends the only gap
+        await waitPastTimeout()
+        XCTAssertEqual(player.state, .reconnecting)
+        wake.post(name: NSWorkspace.didWakeNotification, object: nil)
+        await waitPastTimeout()                     // the post-wake connect times out
+        XCTAssertEqual(builds.count, 2)
+        XCTAssertEqual(player.state, .reconnecting)
         player.stop()
     }
 
