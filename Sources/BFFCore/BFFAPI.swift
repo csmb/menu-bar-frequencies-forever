@@ -40,12 +40,20 @@ enum BFFAPI {
     /// with their page URLs.
     static let schedule = identified(URL(string: "https://data.bff.fm/shows/all.ics")!)
 
-    /// Adds our app_id after whatever query the URL already carries.
+    /// Adds our app_id after whatever query the URL already carries, and
+    /// leaves that query exactly as written. Rebuilt through `queryItems` it
+    /// was decoded and re-encoded, so a `%2B` went out as `+`, which a server
+    /// reads as a space. Appending is safe: `URL(string:)` has already escaped
+    /// anything malformed, and `appID` is all unreserved characters.
     static func identified(_ url: URL) -> URL {
         guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
         else { return url }
-        components.queryItems = (components.queryItems ?? [])
-            + [URLQueryItem(name: "app_id", value: appID)]
+        let ours = "app_id=\(appID)"
+        if let query = components.percentEncodedQuery, !query.isEmpty {
+            components.percentEncodedQuery = query + "&" + ours
+        } else {
+            components.percentEncodedQuery = ours
+        }
         return components.url ?? url
     }
 

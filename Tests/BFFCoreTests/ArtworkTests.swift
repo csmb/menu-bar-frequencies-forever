@@ -31,6 +31,20 @@ final class ArtworkTests: XCTestCase {
         XCTAssertEqual(request.url?.query, "app_id=com.bunting.menu-bar-frequencies-forever")
     }
 
+    /// An artwork URL that already has a query keeps it exactly as written,
+    /// with app_id after it. Rebuilt through `queryItems`, the query was
+    /// decoded and re-encoded on the way out: `%2B` came back as `+`, which a
+    /// server reads as a space, and `%2F` as `/` — enough to break a signed
+    /// or encoded artwork URL.
+    func testArtworkRequestKeepsTheQueryItWasGiven() async throws {
+        let signed = URL(string: "https://artwork.invalid/cover.png?sig=a%2Fb%2Bc%3D&q=a+b")!
+        _ = await Artwork.image(at: signed)
+        let request = try XCTUnwrap(ArtworkHost.requests.first)
+        XCTAssertEqual(request.url?.absoluteString,
+                       "https://artwork.invalid/cover.png?sig=a%2Fb%2Bc%3D&q=a+b"
+                           + "&app_id=com.bunting.menu-bar-frequencies-forever")
+    }
+
     /// And what comes back is the picture, as it was with `AsyncImage`.
     func testArtworkDecodesTheImageItIsSent() async {
         ArtworkHost.body = Self.png(width: 3, height: 2)
