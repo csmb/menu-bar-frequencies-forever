@@ -76,6 +76,15 @@ app never being "active"). An `NSPopover` with `.transient` behaviour owns its
 own presentation, closes itself on an outside click, and anchors under the
 button — which also removed ~100 lines of hand-centring.
 
+**The entry point is AppKit too, not a SwiftUI `App`.** `BFFMenuBarApp.main()`
+runs `NSApplication` with `AppDelegate` and a one-item main menu that exists
+only to give ⌘Q. A SwiftUI `App` must declare a scene, and the only one this
+app had to declare was an empty `Settings`. On macOS 27 that blank window
+opened by itself whenever the app was launched from Finder or `open` — a first
+launch from the disk image greeted people with it — and ⌘, opened it any time.
+A launch as a login item did not, which is why 1.2 never showed it here.
+SwiftUI still draws the dropdown, through `NSHostingController`.
+
 **The popover keeps one hosting controller for the app's life**, so SwiftUI's
 `onAppear` fires *once, ever*. Anything that must happen on each open belongs
 in `AppModel.dropdownWillOpen()`, called from `popoverWillShow`. A `@State`

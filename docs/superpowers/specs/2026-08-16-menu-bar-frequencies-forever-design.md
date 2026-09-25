@@ -85,7 +85,7 @@ Dropdown content, top to bottom:
 ### App entry (`BFFMenuBarApp`)
 
 - `@main` SwiftUI `App` with a `MenuBarExtra` whose label is the Cool Rock icon: `NSImage` loaded from the bundled SVG, rendered at menu bar size, `isTemplate = false` (full color). While stopped, a desaturated/dimmed variant (Core Image mono filter + reduced alpha) is shown instead.
-  **Superseded twice:** not `MenuBarExtra` (see CLAUDE.md, Architecture) and not dimmed — stopped shows the same full-colour rock upright and still, with its bars at rest.
+  **Superseded three times:** not a SwiftUI `App` at all — `BFFMenuBarApp.main()` runs `NSApplication` directly, because the scene an `App` must declare opened as an empty Settings window on launch; not `MenuBarExtra` (see CLAUDE.md, Architecture); and not dimmed — stopped shows the same full-colour rock upright and still, with its bars at rest.
 - Tracks dropdown visibility and play state to drive `NowPlayingService` polling.
 
 ## App Bundle
