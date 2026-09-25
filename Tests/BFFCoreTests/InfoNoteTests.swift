@@ -22,7 +22,8 @@ final class InfoNoteTests: XCTestCase {
     }
 
     /// Their info service failing while the stream is down too is said as
-    /// both; while nothing is meant to be playing, the stream goes unmentioned.
+    /// both; while the stream is stopped or still connecting, it goes
+    /// unmentioned.
     func testAStreamThatIsNotPlayingIsNotCalledFine() {
         XCTAssertEqual(MenuView.infoNote(for: .unavailable, player: .reconnecting), .infoAndStreamDown)
         XCTAssertEqual(MenuView.infoNote(for: .unavailable, player: .failed("gone")), .infoAndStreamDown)

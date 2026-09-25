@@ -89,11 +89,12 @@ struct MenuView: View {
     /// BFF.fm. What it says now depends on why the fetch failed and on what
     /// the stream is doing.
     enum InfoNote: Equatable {
-        /// This Mac has no connection.
+        /// This Mac says it has no connection.
         case offline
-        /// BFF.fm's info service is failing; the stream plays on.
+        /// BFF.fm's info service can't be reached; the stream plays on.
         case infoDownStreamPlaying
-        /// BFF.fm's info service is failing, and nothing is meant to be playing.
+        /// BFF.fm's info service can't be reached, and the stream is not known
+        /// to be down: it is stopped, or still connecting.
         case infoDown
         /// Neither the info service nor the stream is getting through.
         case infoAndStreamDown

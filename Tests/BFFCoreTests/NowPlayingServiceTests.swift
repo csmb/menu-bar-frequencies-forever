@@ -143,13 +143,19 @@ final class NowPlayingServiceTests: XCTestCase {
 
     // MARK: Why a fetch failed
 
-    /// Wi-Fi off comes back from URLSession as "not connected"; a network with
-    /// no way out usually fails at DNS. That is this Mac's problem, not the
-    /// station's, and the note under the controls has to know which.
+    /// "Offline" only when this Mac says so: Wi-Fi off comes back from
+    /// URLSession as "not connected" before any request leaves, and a data
+    /// setting can refuse one outright. A failed DNS lookup or a dropped
+    /// connection could be either side — a bff.fm record gone, their server
+    /// resetting — so, like a timeout or a 5xx, it is not put down to this
+    /// Mac.
     func testOfflineIsToldFromAStationProblem() {
         XCTAssertEqual(NowPlayingService.failure(for: URLError(.notConnectedToInternet)), .offline)
-        XCTAssertEqual(NowPlayingService.failure(for: URLError(.networkConnectionLost)), .offline)
-        XCTAssertEqual(NowPlayingService.failure(for: URLError(.cannotFindHost)), .offline)
+        XCTAssertEqual(NowPlayingService.failure(for: URLError(.dataNotAllowed)), .offline)
+        XCTAssertEqual(NowPlayingService.failure(for: URLError(.internationalRoamingOff)), .offline)
+        XCTAssertEqual(NowPlayingService.failure(for: URLError(.cannotFindHost)), .unavailable)
+        XCTAssertEqual(NowPlayingService.failure(for: URLError(.dnsLookupFailed)), .unavailable)
+        XCTAssertEqual(NowPlayingService.failure(for: URLError(.networkConnectionLost)), .unavailable)
         XCTAssertEqual(NowPlayingService.failure(for: URLError(.timedOut)), .unavailable)
         XCTAssertEqual(NowPlayingService.failure(for: URLError(.badServerResponse)), .unavailable)
         XCTAssertEqual(NowPlayingService.failure(for: CocoaError(.coderReadCorrupt)), .unavailable)

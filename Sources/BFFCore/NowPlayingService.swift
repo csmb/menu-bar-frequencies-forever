@@ -20,21 +20,26 @@ final class NowPlayingService: ObservableObject {
     var fetchFailed: Bool { fetchFailure != nil }
 
     enum FetchFailure: Equatable {
-        /// This Mac could not get out at all — nothing to do with the station.
+        /// This Mac says it cannot get out at all — nothing to do with the
+        /// station.
         case offline
-        /// We got out, and BFF.fm's info service did not answer properly.
+        /// BFF.fm's info service could not be reached or did not answer
+        /// properly, and nothing on this Mac says it is offline. Their side
+        /// or somewhere in between: the note does not guess which.
         case unavailable
     }
 
-    /// Wi-Fi off comes back from URLSession as "not connected" before any
-    /// request leaves the Mac, and a network with no way out usually fails at
-    /// DNS. Anything else — a timeout, a 5xx, a body that won't decode — got
-    /// somewhere, and is put down to the service.
+    /// Offline only on proof. Wi-Fi off comes back from URLSession as "not
+    /// connected" before any request leaves the Mac, and a data setting can
+    /// refuse a request outright: those are this Mac. Anything else could be
+    /// either side — a failed DNS lookup is also what a missing bff.fm record
+    /// looks like, and a dropped connection what a server reset looks like —
+    /// so it is put down to "can't reach the info service", which blames no
+    /// one. A network with no way out reads that way too.
     static func failure(for error: Error) -> FetchFailure {
         guard let code = (error as? URLError)?.code else { return .unavailable }
         switch code {
-        case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed,
-             .internationalRoamingOff, .cannotFindHost, .dnsLookupFailed:
+        case .notConnectedToInternet, .dataNotAllowed, .internationalRoamingOff:
             return .offline
         default:
             return .unavailable
