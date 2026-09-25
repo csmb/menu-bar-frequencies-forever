@@ -268,6 +268,6 @@ else
   note: this app is ad-hoc signed, not Developer ID signed and notarized.
         Anyone who downloads it will be blocked by Gatekeeper and has to
         allow it by hand in System Settings > Privacy & Security.
-        See README, "Sharing it with other people".
+        To build one that opens anywhere, see CLAUDE.md, Distribution.
 WARNING
 fi

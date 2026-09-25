@@ -30,7 +30,9 @@ final class MenuClickTests: XCTestCase {
     /// A show photo in portrait, scaled to fill the 256pt square, hangs over
     /// the rows above it. Clipping hides the overhang, but a clip is for
     /// drawing only, so it went on catching clicks: the show name, the DJ and
-    /// "…" all went dead while this 480×640 image was up.
+    /// "…" all went dead while this 480×640 image was up. The test clicks
+    /// "…", the one control that row always has; the links beside it sat
+    /// under the same overhang.
     func testPortraitArtworkLeavesTheTopRowClickable() async throws {
         let menu = try await Menu(showing: "https://a.bff.fm/image/original/portrait.png")
         await menu.clickEllipsis()

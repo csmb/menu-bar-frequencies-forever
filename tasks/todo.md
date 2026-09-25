@@ -48,6 +48,10 @@ Side note: macOS 27's `hdiutil` warns that `attach -nobrowse` is deprecated in
 favour of `diskutil image attach`; `make-dmg.sh`'s `hdiutil attach` may have to
 move eventually.
 
+**Correction:** "up front" in item 4 means before notarization, not before the
+build. The check needs the version, and that comes from the built app's
+Info.plist.
+
 ---
 
 # User-Agent follows the app's version (2026-09-24)
@@ -128,6 +132,9 @@ The code changes went in test-first, each new test failing on the old code:
 
 The User-Agent bump has no test by design; one pinning the string could only
 fail on a deliberate change.
+
+**Superseded:** the same day, 63f8c7e replaced the hand-set 1.1 with the app's
+own version from Info.plist, which three UserAgentTests pin.
 
 The Makefile and script changes (9, 10) were verified by running them:
 `make -n` for each `BUILD_DIR` case, a real `make clean` in a scratch clone

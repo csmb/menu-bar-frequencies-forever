@@ -65,7 +65,7 @@ final class PlayerController: ObservableObject {
 
     /// 2, 4, 8, 16, 32 seconds: five retries over about a minute of gaps,
     /// which covers a lid reopened while Wi-Fi rejoins, and stays a good
-    /// guest — at most six connection attempts per incident, and a new
+    /// guest — at most five reconnect attempts per incident, and a new
     /// incident only once playback has held for `steadyAfter`.
     nonisolated static let defaultReconnectDelays: [Duration] =
         [.seconds(2), .seconds(4), .seconds(8), .seconds(16), .seconds(32)]

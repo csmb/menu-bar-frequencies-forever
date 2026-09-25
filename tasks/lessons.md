@@ -26,7 +26,7 @@
 - **2026-08-23 — `lsof` on the app process is not evidence about AVPlayer.**
   Its network activity did not show under the app's pid; absence of a
   connection there says nothing either way. Use the app's own signals.
-- **2026-09-25 — Dead clicks in one region: look for what lies over it before
+- **2026-09-24 — Dead clicks in one region: look for what lies over it before
   blaming focus.** The "…" button, then the show and DJ links, ignored clicks.
   I guessed the dropdown was not getting focus (a deprecated activation
   call), which would have killed every control, not just the top row. The

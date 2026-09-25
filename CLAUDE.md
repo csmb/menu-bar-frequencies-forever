@@ -49,8 +49,9 @@ whole assemble/sign/notarize/staple path — and the DMG — must stay off iClou
 Signing in place was measured losing the race outright. Override with
 `make BUILD_DIR=/somewhere dmg`. Only a command-line override counts: a
 `BUILD_DIR` exported in the shell is ignored on purpose, an empty one is
-refused, and `make clean` removes only the `.app` and `.dmg`s this project
-writes there. It used to `rm -rf` the whole directory, whatever that was.
+refused, and `make clean` removes only what this project writes there: the
+`.app`, its `.dmg`s and `make test`'s `test-build`. It used to `rm -rf` the
+whole directory, whatever that was.
 
 **Never write `cmd | grep -q` in these scripts.** They run under `set -o
 pipefail`, where `grep -q` exits on its first match, the producer dies of
@@ -154,8 +155,9 @@ more than it must. Two rules hold this up, and each has been broken twice:
   DJ's show-page lookup — which went without one until 2026-09, so a dozen
   opens against a failing show page sent a dozen requests.
 
-A third rule joined them with auto-reconnect: **a drop costs at most six
-connection attempts.** The backoff runs 2→32s and then settles into `.failed`
+A third rule joined them with auto-reconnect: **a drop costs at most five
+reconnect attempts**, each of them two connections — AVFoundation opens a probe
+and then the stream. The backoff runs 2→32s and then settles into `.failed`
 rather than retrying forever; reconnect arms only after playback actually
 started, so Play against a down stream still fails within one watchdog. The
 budget is per drop, not per press of Play: once playback has held for a minute
@@ -227,11 +229,12 @@ after its subject. **Status code alone proves nothing.**
 ## Testing
 
 The spec scoped unit tests to `NowPlaying` decoding and poll gating; the suite
-has since grown to cover whatever can be driven without the UI: the reconnect
+has since grown to cover whatever can be driven in-process: the reconnect
 state machine (through `transition(to:)` and an inert fake player), the URL
 trust check, schedule and show-page parsing, slugs, the icon's rendered
-pixels, and how artwork requests identify us. Views are still verified by
-screenshot, and real playback by the env-gated live tests.
+pixels, how artwork requests identify us, and clicks on the real dropdown
+(`MenuClickTests`). How views look is still verified by screenshot, and real
+playback by the env-gated live tests.
 
 Make a test isolate what it claims. "The animation frames differ" passed while
 the rock sat perfectly still, because the equalizer bars differ between every
@@ -447,9 +450,11 @@ by its exit code; mount it.
 The AppleScript names the disk, so with the last image of this version still
 mounted — say, after mounting it to check — the new one attaches as
 `<name> 1`, the layout goes to the old one, and the build fails after
-notarization with the `.DS_Store` error above. `make-dmg.sh` refuses at the
-start when `/Volumes/<name>` exists, and checks the mount point again after
-attaching, because notarization leaves minutes in which to mount something.
+notarization with the `.DS_Store` error above. `make-dmg.sh` refuses when
+`/Volumes/<name>` exists — once the app is built, since its Info.plist names
+the version, and before any notarization — and checks the mount point again
+after attaching, because notarization leaves minutes in which to mount
+something.
 
 `Scripts/app-icon.swift` recentres the artwork before `iconutil`, because the
 rock sits about 100px nearer the top of its own artboard than the bottom and
@@ -501,7 +506,7 @@ wherever it is stale.** The first two departures were `MenuBarExtra`, where the
 app uses `NSStatusItem`/`NSPopover`, and a desaturated, dimmed icon while
 stopped, where it stays full colour and shows play as motion. Distribution,
 reconnect, polling backoff, the dropdown's contents, the app_id and artwork
-loading followed. The README described the dimmed behaviour for months after it
+loading followed. The README described the dimmed behaviour for a day after it
 stopped being true — prose about the icon is worth checking against
 `StatusIcon.swift`, which is short and states its own intent.
 
