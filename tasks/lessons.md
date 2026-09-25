@@ -37,3 +37,10 @@
   it. An in-process click harness (`MenuClickTests`: off-screen,
   non-activating panel, `window.sendEvent`) reproduced it and proved the
   fix, where clicking the live popover never could.
+- **2026-09-24 — Empty output is not the same as "all clear".** `make release`
+  read `git status --porcelain` printing nothing as a clean tree. Outside a
+  git checkout git fails and prints nothing too, so a copied folder with an
+  edited source sailed through to a stamped, built release. When silence is
+  the success signal, check the command's exit status as well — and prove
+  the guard by running it where it should refuse, not only where it should
+  pass.

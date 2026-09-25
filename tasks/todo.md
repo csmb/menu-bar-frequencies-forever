@@ -1,3 +1,72 @@
+# Verification fixes (2026-09-24)
+
+Findings 1–10 from the verification of 4f97b7f..dca63c1. One commit each on
+main, nothing pushed, the 23 earlier commits left as they are. Code and test
+changes go in test-first: each new or changed test is watched failing —
+against the current code where the code is wrong, against a planted copy of
+the bug where the code is already right. Finding 5 follows the choice made:
+"offline" only on proof.
+
+## Todo
+
+- [x] 1. A test that can fail for one-pass TEXT unescaping (`\\n`); the old
+      test's comment stops claiming to catch it (326e4cf)
+- [x] 2. `identified()` keeps an existing query exactly as written (271ed08)
+- [x] 3. `make release` refuses outside a git checkout (e8eee42)
+- [x] 4. Tests for three untested promises: wake's fresh budget, unbroken
+      playback for the steady reset, character references decoded once
+      (dce0168)
+- [x] 5. Offline only on proof: DNS failures and dropped connections get the
+      neutral note (b9ea7d2)
+- [x] 10a. A bare CR ends a line in the schedule feed (1a79f7f)
+- [x] 10b. The app icon's crop is no longer a pixel low (4162012)
+- [x] 6. No "About box" in the docs (8e72d99)
+- [x] 7. The spec annotated wherever it is stale (3bd713c)
+- [x] 8. The defaults keys as they are on a Mac that ran 1.4 or earlier
+      (0522240)
+- [x] 9. Doc drift: StatusIcon, `make clean`, the volume check, retries,
+      MenuClickTests, dates, the 1.1 User-Agent, make-dmg's README pointer
+      (347e5cc)
+- [x] Full suite and a clean export with zero warnings; test count updated
+
+## Review
+
+Every code or test change was watched failing first:
+
+1. The new one-pass test failed against both planted one-escape-at-a-time
+   decoders: no link, because the name came out with a newline in it.
+2. The artwork test failed on the old `identified()`, which sent
+   `sig=a%2Fb%2Bc%3D` as `sig=a/b+c%3D`. A probe of odd queries, one process
+   each, never trapped the percent-encoded setter: `URL(string:)` had already
+   escaped them.
+3. In a `git archive` export with an edited source file, the old Makefile
+   stamped 9.8 and built the edit; the new one refuses before stamping. A
+   clean clone still reaches the Developer ID check, a stamp-only re-run still
+   proceeds, and an uncommitted edit is still refused.
+4. Each new test failed against its planted bug. Wake without the budget reset
+   ended in `.failed`. Without the stall's cancel, the good stretches added up
+   to a third build. Decoding twice lost the link. The timing test passed five
+   runs in a row.
+5. The classification test failed on the three ambiguous codes before the
+   change.
+10a. The bare-CR test relinked "Real Show" to the next event's page before the
+    fix. A guard for the CRLF-first order fails with the order swapped. The
+    cached real feed still parses to the same 87 entries.
+10b. On a synthetic icon with a blue top row, the old crop lost that row and
+    left margins of 218 above and 219 below; the new one keeps it, 218 and 218.
+    The real rock goes from 177/178 to 177/177.
+
+6–9 are docs. Earlier todo sections get Superseded or Correction notes rather
+than rewrites, and the 23 commits under review are unchanged. A lesson on
+empty output went into lessons.md.
+
+127 tests, one more than planned: the CRLF-order guard is the extra one. A
+clean export of 347e5cc built debug and release with no warnings and ran 127
+tests, 3 env-gated skips, 0 failures. The release-guard cases and the icon
+check were run again on that commit. Nothing pushed.
+
+---
+
 # Small fixes, round 3 (2026-09-24)
 
 From the "what's left" list: items 1–4, 6 and 9. One commit each; code changes

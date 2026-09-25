@@ -23,7 +23,7 @@ one-line executable calling `BFFMenuBarApp.main()`.
 make app      # $BUILD_DIR/BFF.FM – Menu Bar Frequencies Forever.app
 make install  # copies it to /Applications
 make dmg      # drag-to-install disk image, in $BUILD_DIR
-make test     # 120 tests, 3 of them env-gated measurements that skip
+make test     # 127 tests, 3 of them env-gated measurements that skip
 ```
 
 **`make test` builds under `$BUILD_DIR/test-build`, off iCloud.** Since Xcode
