@@ -184,10 +184,13 @@ kept by us — so what was said to the station still holds. `defaults read
 com.bunting.menu-bar-frequencies-forever` shows two more keys, both written by
 Apple's frameworks rather than us: `AVRoutingControllerIRSessionServiceTokenKey`
 (the AirPlay picker) and `NSStatusItem Preferred Position Item-0` (AppKit, where
-the icon sits). If it grows beyond those, check whether the new key is theirs
-before shipping it. The stream's CDN also sets a one-hour `DASSessionId`
-cookie, which AVFoundation keeps in the app's `~/Library/HTTPStorages` jar —
-framework-managed, like the HTTP cache below.
+the icon sits). A Mac that ran 1.4 or earlier may also hold
+`NSWindow Frame com_apple_SwiftUI_Settings_window`: AppKit's record of the
+empty Settings window dca63c1 removed, which nothing writes any more. If it
+grows beyond those, check whether the new key is theirs before shipping it.
+The stream's CDN also sets a one-hour `DASSessionId` cookie, which AVFoundation
+keeps in the app's `~/Library/HTTPStorages` jar — framework-managed, like the
+HTTP cache below.
 
 Responses do land in `URLSession`'s shared HTTP cache, which is not ours and
 obeys their headers: `no-cache, must-revalidate` on the API, `immutable` on

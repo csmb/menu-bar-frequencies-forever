@@ -149,6 +149,11 @@ problem and its workaround, three defaults keys and a CDN cookie, Unicode
 slugs, and what the icon diff does and does not prove. The spec has a
 Superseded note wherever it is stale, and the build plan is marked historical.
 
+**Correction:** this Mac had four defaults keys, not three. The fourth,
+`NSWindow Frame com_apple_SwiftUI_Settings_window`, is AppKit's, left by the
+Settings window dca63c1 removed. And eleven stale statements in the spec had no
+note until 3bd713c.
+
 ---
 
 # Review fixes: "Fix before the next release" (2026-09-24)
