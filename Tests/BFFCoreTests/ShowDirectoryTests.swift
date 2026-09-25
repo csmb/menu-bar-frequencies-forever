@@ -67,8 +67,7 @@ final class ShowDirectoryTests: XCTestCase {
     /// iCalendar escapes commas, semicolons and backslashes in text (RFC 5545
     /// §3.3.11), so a show with one in its name arrived as
     /// `Rock\, Paper\; Scissors` and never matched now.json's plain program
-    /// name — no link. The escaped backslash is there to catch a
-    /// replace-one-escape-at-a-time decoding, which misreads `\\,`.
+    /// name — no link.
     func testShowNamesWithCommasAndSemicolonsResolve() async {
         let directory = directory(returning: """
         BEGIN:VEVENT
@@ -85,6 +84,23 @@ final class ShowDirectoryTests: XCTestCase {
                        "https://bff.fm/shows/rps")
         XCTAssertEqual(directory.url(forShow: #"AC\DC, Live"#)?.absoluteString,
                        "https://bff.fm/shows/acdc")
+    }
+
+    /// Escapes are undone in one pass, left to right, so an escaped backslash
+    /// is never read as the start of another escape. `Hack\\n Slash` is an
+    /// escaped backslash and then an n: undone one escape at a time, in either
+    /// order, it comes out with a newline in it and matches nothing. The
+    /// fixture above cannot tell — no escape follows its backslash.
+    func testTextEscapesAreUndoneInOnePass() async {
+        let directory = directory(returning: """
+        BEGIN:VEVENT
+        SUMMARY:Hack\\\\n Slash on BFF.FM
+        URL:https://bff.fm/shows/hack-n-slash
+        END:VEVENT
+        """)
+        await directory.load()
+        XCTAssertEqual(directory.url(forShow: #"Hack\n Slash"#)?.absoluteString,
+                       "https://bff.fm/shows/hack-n-slash")
     }
 
     /// A body that opens with a space or tab starts with a continuation line
