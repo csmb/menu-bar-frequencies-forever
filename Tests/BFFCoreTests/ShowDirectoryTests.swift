@@ -117,6 +117,34 @@ final class ShowDirectoryTests: XCTestCase {
                        "https://bff.fm/shows/real-show")
     }
 
+    /// The live feed ends each event with a bare CR, `END:VEVENT\rBEGIN:VEVENT`,
+    /// and a CRLF split reads that as one line. The BEGIN:VEVENT in it went
+    /// unseen, so the last SUMMARY lived on into the next event, and an event
+    /// with a URL but no SUMMARY relinked the show before it.
+    func testABareCarriageReturnEndsALine() {
+        let feed = "BEGIN:VEVENT\r\n"
+            + "SUMMARY:Real Show on BFF.FM\r\n"
+            + "URL:https://bff.fm/shows/real-show\r\n"
+            + "END:VEVENT\rBEGIN:VEVENT\r\n"
+            + "URL:https://bff.fm/shows/someone-else\r\n"
+            + "END:VEVENT\r\n"
+        XCTAssertEqual(ShowDirectory.parse(feed)["real show"]?.absoluteString,
+                       "https://bff.fm/shows/real-show")
+    }
+
+    /// But a CRLF is one line end, not two. Read as two, an empty line comes
+    /// between a wrapped line and its continuation, the continuation joins
+    /// that instead, and the show's name is cut short.
+    func testFoldedLinesUnfoldAcrossCRLF() {
+        let feed = "BEGIN:VEVENT\r\n"
+            + "SUMMARY:A Show Whose Name\r\n"
+            + "  Wraps on BFF.FM\r\n"
+            + "URL:https://bff.fm/shows/wraps\r\n"
+            + "END:VEVENT\r\n"
+        XCTAssertEqual(ShowDirectory.parse(feed)["a show whose name wraps"]?.absoluteString,
+                       "https://bff.fm/shows/wraps")
+    }
+
     func testUnknownShowHasNoURL() async {
         let directory = directory(returning: feed)
         await directory.load()

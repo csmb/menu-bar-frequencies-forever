@@ -202,9 +202,17 @@ final class ShowDirectory: ObservableObject {
     ///
     /// Unfolding comes first, so an escape split across two lines is whole
     /// again before `unescaped(_:)` reads it.
+    ///
+    /// A line ends at CRLF, LF or a bare CR. The live feed ends each event
+    /// with a bare CR, and read as part of the line it hid every BEGIN:VEVENT
+    /// after the first, so a SUMMARY lived on into the event after it.
     private static func unfolded(_ ics: String) -> [String] {
+        // CRLF first, or its CR and LF would each end a line, with an empty
+        // one between that a continuation would then be joined to.
+        let text = ics.replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
         var lines: [String] = []
-        for raw in ics.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n") {
+        for raw in text.components(separatedBy: "\n") {
             if raw.hasPrefix(" ") || raw.hasPrefix("\t"), let last = lines.indices.last {
                 lines[last] += raw.dropFirst()
             } else {
