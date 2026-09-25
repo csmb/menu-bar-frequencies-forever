@@ -36,7 +36,7 @@ final class LoginItemTests: XCTestCase {
 
 /// Stands in for `SMAppService.mainApp`, so no test registers the test runner
 /// as a login item.
-private final class FakeLoginItems: LoginItemService {
+final class FakeLoginItems: LoginItemService {
     var status: SMAppService.Status
     var refusal: Error?
 

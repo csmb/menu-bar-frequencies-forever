@@ -41,5 +41,10 @@ struct ArtworkView: View {
             image = nil
             image = await Artwork.image(at: url)
         }
+        // Decoration: it takes no clicks. Scaled to fill, art that isn't square
+        // overhangs its square, and the clip that hides the overhang is for
+        // drawing only — it went on catching clicks. A 480×640 show photo left
+        // the show name, the DJ and "…" above it dead.
+        .allowsHitTesting(false)
     }
 }

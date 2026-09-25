@@ -23,7 +23,7 @@ one-line executable calling `BFFMenuBarApp.main()`.
 make app      # $BUILD_DIR/BFF.FM – Menu Bar Frequencies Forever.app
 make install  # copies it to /Applications
 make dmg      # drag-to-install disk image, in $BUILD_DIR
-make test     # 118 tests, 3 of them env-gated measurements that skip
+make test     # 120 tests, 3 of them env-gated measurements that skip
 ```
 
 **`make test` builds under `$BUILD_DIR/test-build`, off iCloud.** Since Xcode
@@ -269,6 +269,12 @@ a test is named for and watch it fail before trusting the name.**
   and wake-from-sleep rebuild through the same path with nobody pressing
   anything, so the list of re-applied things is load-bearing: today it is
   exactly the volume, re-applied in `open()`.
+- **Clipping is for drawing, not for clicks.** `.clipShape` and `.clipped()`
+  hide whatever overhangs a frame, but the overhang still catches clicks. Art
+  scaled to fill that isn't square overhangs its square, and a 480×640 show
+  photo lay invisibly over the rows above it: the show name, the DJ and "…"
+  were all dead, in 1.2 as well. `ArtworkView` takes no clicks at all
+  (`allowsHitTesting(false)`), and `MenuClickTests` pins it.
 - **A live stream can end.** When Icecast or its CDN closes the connection
   cleanly — a source restart, a relay recycling listeners — AVPlayer plays out
   its buffer, posts `didPlayToEndTime` and pauses: no error, no stall.
@@ -305,6 +311,14 @@ status icon animates while the player is active, so two icon-region captures
 reconnecting, so a diff proves the player is trying, not that sound is coming
 out. The env-gated live tests (`LIVE_RECONNECT=1`, `MEASURE_TIME_TO_AUDIO=1`)
 exercise the real stream with no UI at all.
+
+**To test that something can be clicked, use `MenuClickTests`.** It hosts the
+real `MenuView` in a borderless, non-activating panel far off screen and hands
+it clicks with `window.sendEvent`. That steals no focus, sends no stray clicks
+into other apps, and needs no accessibility access. Its baseline test —
+clicking "…" opens More with nothing in the way — is what shows the harness
+still delivers clicks, so keep it passing. It found the overhanging-artwork
+bug above, which the live popover never let anyone click their way to.
 
 To exercise `PlayerController` end to end without sound and without the
 station, point `BFFAPI.stream` — in a scratch copy — at a local Icecast-style

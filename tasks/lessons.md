@@ -26,3 +26,14 @@
 - **2026-08-23 — `lsof` on the app process is not evidence about AVPlayer.**
   Its network activity did not show under the app's pid; absence of a
   connection there says nothing either way. Use the app's own signals.
+- **2026-09-25 — Dead clicks in one region: look for what lies over it before
+  blaming focus.** The "…" button, then the show and DJ links, ignored clicks.
+  I guessed the dropdown was not getting focus (a deprecated activation
+  call), which would have killed every control, not just the top row. The
+  real cause was a portrait show photo, scaled to fill, overhanging its
+  square: clipped from view but still catching clicks for everything above
+  it. The shape of the symptom — only the rows above the artwork — was the
+  clue, and the cached image's size (480×640 → 43pt of overhang) confirmed
+  it. An in-process click harness (`MenuClickTests`: off-screen,
+  non-activating panel, `window.sendEvent`) reproduced it and proved the
+  fix, where clicking the live popover never could.
