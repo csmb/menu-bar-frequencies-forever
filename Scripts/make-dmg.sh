@@ -23,7 +23,7 @@ VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/
 # Versioned, so a friend can tell two downloads apart and a browser does not
 # quietly rename the second one to "… -2.dmg". Info.plist is the single source:
 # `make release VERSION=1.1` stamps it there and it reaches the filename, the
-# volume name, and the app's own About box from that one place.
+# volume name and the app's User-Agent from that one place.
 DMG="$BUILD_DIR/BFF.FM – Menu Bar Frequencies Forever $VERSION.dmg"
 VOLUME="BFF.FM – Menu Bar Frequencies Forever $VERSION"
 NOTARY_PROFILE="${NOTARY_PROFILE:-menu-bar-frequencies-forever}"

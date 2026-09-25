@@ -16,8 +16,7 @@ enum BFFAPI {
     static let appID = "com.bunting.menu-bar-frequencies-forever"
     /// Carries the app's own version, read from the bundle's Info.plist — the
     /// file `make release` stamps — so a release moves it along with the DMG
-    /// name, the volume name and the About box. Set by hand, it still said 1.0
-    /// in 1.4.
+    /// name and the volume name. Set by hand, it still said 1.0 in 1.4.
     static let userAgent = userAgent(for: .main)
 
     /// The bundle's version when the bundle is this app, and "dev" when it is

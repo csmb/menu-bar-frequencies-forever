@@ -58,6 +58,10 @@ a release moves it along with the DMG name, the volume name and the About box.
 Outside the app bundle (`swift test`, a bare `swift run`) it says `dev` rather
 than borrow the host process's version.
 
+**Superseded:** there is no About box. The SwiftUI `App` had the standard one
+in a menu no `LSUIElement` app ever shows, and it went with the `App` in
+dca63c1.
+
 ## Todo
 
 - [x] RED/GREEN: the version comes from the bundle, and only from ours
